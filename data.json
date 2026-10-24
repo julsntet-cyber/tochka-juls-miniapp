@@ -118,7 +118,7 @@
       "id": "morning",
       "kind": "audio",
       "title": "Утренняя медитация",
-      "minutes": 13,
+      "minutes": 12.6,
       "note": "утренняя практика, настрой на день",
       "src": "audio/meditaciya-utro.mp3",
       "marks": "med_morning"
