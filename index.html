@@ -366,6 +366,7 @@ body[data-tab="practices"]{--bg:#FBF3DF;--b1:#FBE8B8;--b2:#F6EAD2;--b3:#FFF4DC;-
 .empty{text-align:center;padding:40px 20px}
 .empty h2{font-size:20px}
 .empty p{color:var(--text-2);font-size:14px;font-weight:600;margin:10px 0 18px}
+.chip:empty{display:none}
 </style>
 </head>
 <body data-tab="today">
@@ -554,7 +555,8 @@ function paintChip(){ var c=document.getElementById('syncchip'); if(c) c.innerHT
 function chipInner(){
   if(D&&D.demo) return '<i></i>примерные данные';
   if(!syncOn()) return '<i></i>только на телефоне';
-  return '<i></i>'+esc(syncMsg||'таблица на связи');
+  if(/недоступна|не ответила/.test(syncMsg||'')) return '<i></i>'+esc(syncMsg);
+  return '';
 }
 /* ---------- шапка экрана ---------- */
 function top(title,sub){
@@ -655,12 +657,14 @@ function miniRing(frac,label,color,txt){
     + '</svg><span>'+label+'</span></div>';
 }
 function viewSleep(){
-  var w=(D.health&&D.health.week)||[];
-  if(!w.length) return '';
-  var goal=(D.health.sleepGoal||8),last=w[w.length-1];
+  var w=((D.health&&D.health.week)||[]).filter(function(x){ return x&&typeof x.sleep==='number'&&typeof x.stress==='number'; });
+  var goal=((D.health&&D.health.sleepGoal)||8);
+  if(!w.length) return '<section class="card"><div class="ch"><h2>Сон</h2><span class="r">цель '+goal+' часов</span></div>'
+    + '<p class="mini">Пока пусто. Данные о сне и стрессе появятся, когда они попадут в таблицу.</p></section>';
+  var last=w[w.length-1];
   var avgS=w.reduce(function(a,x){ return a+x.sleep; },0)/w.length;
   var avgSt=w.reduce(function(a,x){ return a+x.stress; },0)/w.length;
-  var st=['','#A8D2C4','#C6DCAE','#F2C8A0','#EFA088','#E8899F'];
+  var st=['','#A8D2C4','#F2C8A0','#E8899F'];
   function hm(v){ var hh=Math.floor(v),m=Math.round((v-hh)*60); return hh+':'+String(m).padStart(2,'0'); }
   var r=52,c=2*Math.PI*r,frac=clamp(last.sleep/goal,0,1);
   return '<section class="card"><div class="ch"><h2>Сон</h2><span class="r">цель '+goal+' часов</span></div>'
@@ -673,10 +677,10 @@ function viewSleep(){
     + '<div class="cbox"><b class="num">'+esc(last.bed)+'</b><span>отбой</span></div></div>'
     + '<div class="rings">'+w.map(function(x){
         return miniRing(x.sleep/goal,DW2[parse(x.date).getDay()],x.sleep>=7?'url(#gring)':'#C8AFD7',''); }).join('')+'</div>'
-    + '<div class="ch" style="margin:22px 0 10px"><h2>Стресс</h2><span class="r">в среднем '+avgSt.toFixed(1)+' из 5</span></div>'
+    + '<div class="ch" style="margin:22px 0 10px"><h2>Стресс</h2><span class="r">в среднем '+avgSt.toFixed(1)+' из 3</span></div>'
     + '<div class="rings">'+w.map(function(x){
-        return miniRing(x.stress/5,DW2[parse(x.date).getDay()],st[x.stress],String(x.stress)); }).join('')+'</div>'
-    + '<p class="mini">Сон и стресс приходят '+esc(D.health.source||'от бота')+'.</p></section>';
+        return miniRing(x.stress/3,DW2[parse(x.date).getDay()],st[x.stress],String(x.stress)); }).join('')+'</div>'
+    + '<p class="mini">Сон и стресс приходят '+esc(D.health.source||'из таблицы')+'.</p></section>';
 }
 /* ---------- 3. Практики ---------- */
 function viewPractices(){

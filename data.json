@@ -104,76 +104,10 @@
     }
   ],
   "health": {
-    "source": "из Harvee через бота",
-    "week": [
-      {
-        "date": "2026-10-18",
-        "sleep": 6.8,
-        "bed": "01:10",
-        "stress": 3
-      },
-      {
-        "date": "2026-10-19",
-        "sleep": 7.5,
-        "bed": "00:20",
-        "stress": 2
-      },
-      {
-        "date": "2026-10-20",
-        "sleep": 6.2,
-        "bed": "01:40",
-        "stress": 4
-      },
-      {
-        "date": "2026-10-21",
-        "sleep": 7.9,
-        "bed": "23:50",
-        "stress": 2
-      },
-      {
-        "date": "2026-10-22",
-        "sleep": 8.2,
-        "bed": "23:30",
-        "stress": 1
-      },
-      {
-        "date": "2026-10-23",
-        "sleep": 7.1,
-        "bed": "00:40",
-        "stress": 3
-      },
-      {
-        "date": "2026-10-24",
-        "sleep": 7.3,
-        "bed": "00:10",
-        "stress": 2
-      }
-    ],
-    "sleepGoal": 8
+    "sleepGoal": 8,
+    "week": []
   },
-  "tasks": [
-    {
-      "id": "t1",
-      "time": "12:00",
-      "title": "Смонтировать 4 ролика",
-      "tag": "блог",
-      "main": true
-    },
-    {
-      "id": "t2",
-      "time": "15:00",
-      "title": "Avilance: контент на неделю",
-      "tag": "Avilance",
-      "main": true
-    },
-    {
-      "id": "t3",
-      "time": "19:00",
-      "title": "Учёба 40 минут",
-      "tag": "учёба",
-      "main": false
-    }
-  ],
+  "tasks": [],
   "path": {
     "title": "Тропа медитаций",
     "start": "2026-10-26",
@@ -184,8 +118,8 @@
       "id": "morning",
       "kind": "audio",
       "title": "Утренняя медитация",
-      "minutes": 2.7,
-      "note": "дыхание и картинка богатой жизни",
+      "minutes": 13,
+      "note": "утренняя практика, настрой на день",
       "src": "audio/meditaciya-utro.mp3",
       "marks": "med_morning"
     },
@@ -344,81 +278,10 @@
       "karusel": "Карусель",
       "storis": "Сторис"
     },
-    "planWeek": "19.10 – 25.10",
+    "planWeek": "",
     "planNote": "план приходит из агента, после планёрки",
-    "plan": [
-      {
-        "id": "c1",
-        "day": 0,
-        "title": "Офис против",
-        "type": "lichn",
-        "format": "reels"
-      },
-      {
-        "id": "c2",
-        "day": 1,
-        "title": "UGC-польза",
-        "type": "podpis",
-        "format": "karusel"
-      },
-      {
-        "id": "c3",
-        "day": 2,
-        "title": "Переобувания",
-        "type": "vovlek",
-        "format": "reels"
-      },
-      {
-        "id": "c4",
-        "day": 3,
-        "title": "Новая воронка UGC",
-        "type": "prodaz",
-        "format": "karusel"
-      },
-      {
-        "id": "c5",
-        "day": 4,
-        "title": "Аутфит без слов",
-        "type": "vovlek",
-        "format": "reels"
-      },
-      {
-        "id": "c6",
-        "day": 5,
-        "title": "Реалити",
-        "type": "lichn",
-        "format": "storis"
-      },
-      {
-        "id": "c7",
-        "day": 6,
-        "title": "Бьюти",
-        "type": "vovlek",
-        "format": "reels"
-      }
-    ],
-    "ideas": [
-      {
-        "id": "i1",
-        "text": "как я переехала в Москву с двумя чемоданами",
-        "tag": "личное"
-      },
-      {
-        "id": "i2",
-        "text": "разбор: почему бренды не отвечают на твои письма",
-        "tag": "польза"
-      },
-      {
-        "id": "i3",
-        "text": "мой день на контент-заводе от и до",
-        "tag": "реалити"
-      },
-      {
-        "id": "i4",
-        "text": "три ошибки новичка в UGC, которые делала я",
-        "tag": "воронка"
-      }
-    ]
+    "plan": [],
+    "ideas": []
   },
   "emotions": {
     "moods": [
