@@ -498,6 +498,16 @@ function nextDue(p){
 }
 function dueText(n){ return n===0?'сегодня':n===1?'завтра':'через '+n+' '+plural(n,'день','дня','дней'); }
 /* ---------- синхронизация с таблицей ---------- */
+function applyKey(){
+  var K='tj_sync_key', k='';
+  try{
+    var q=new URLSearchParams(location.search), h=new URLSearchParams((location.hash||'').replace(/^#/,''));
+    k=q.get('k')||h.get('k')||'';
+    if(k){ localStorage.setItem(K,k); try{ history.replaceState(null,'',location.pathname); }catch(e){} }
+    else k=localStorage.getItem(K)||'';
+  }catch(e){}
+  if(D&&D.sync&&k&&D.sync.url){ D.sync.key=k; D.sync.enabled=true; }
+}
 function syncOn(){ return !!(D&&D.sync&&D.sync.enabled&&D.sync.url&&D.sync.key); }
 function syncPush(){
   if(!syncOn()) return Promise.resolve();
@@ -529,7 +539,16 @@ function syncPull(){
         if(r.followers) S.followers=+r.followers;
       });
       save(); syncMsg='таблица обновлена';
-    }).catch(function(){ syncMsg='таблица недоступна'; });
+    }).catch(function(){ syncMsg='таблица недоступна'; })
+    .then(function(){
+      return fetch(D.sync.url+'?mode=health&key='+encodeURIComponent(D.sync.key)+'&v='+Date.now())
+        .then(function(r){ return r.json(); })
+        .then(function(j){
+          if(!j||!j.ok||!j.week||!j.week.length) return;
+          D.health=D.health||{}; D.health.week=j.week; D.health.source='таблица';
+          if(j.followers&&!S.followers) S.followers=+j.followers;
+        }).catch(function(){});
+    });
 }
 function paintChip(){ var c=document.getElementById('syncchip'); if(c) c.innerHTML=chipInner(); }
 function chipInner(){
@@ -1046,7 +1065,7 @@ function boot(){
   loadError='';
   fetch('data.json?v='+Date.now(),{cache:'no-store'})
     .then(function(r){ if(!r.ok) throw new Error('data.json: ответ '+r.status+'.'); return r.json(); })
-    .then(function(j){ D=j; S=loadState(); seedDemo(); render(); if(syncOn()) syncPull().then(render); })
+    .then(function(j){ D=j; applyKey(); S=loadState(); seedDemo(); render(); if(syncOn()) syncPull().then(render); })
     .catch(function(e){ D=null; loadError=(e&&e.message)?e.message:'Не удалось прочитать data.json.'; render(); });
 }
 render();

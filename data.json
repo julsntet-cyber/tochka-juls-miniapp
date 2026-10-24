@@ -1,14 +1,10 @@
 {
   "version": 2,
-  "demo": true,
+  "demo": false,
   "user": {
     "name": "Юляша"
   },
-  "sync": {
-    "enabled": false,
-    "url": "",
-    "key": ""
-  },
+  "sync": { "enabled": false, "url": "https://script.google.com/macros/s/AKfycbztO92CL8eUXaqUoIAWtPXy-H1SO7_5ICj-aUBhcI_LkVJbSg-SD0hsAcd1nbOYKBgN/exec", "key": "" },
   "challenge": {
     "title": "Lock In",
     "start": "2026-10-05",
