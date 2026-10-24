@@ -136,8 +136,10 @@
       "id": "visual",
       "kind": "vision",
       "title": "Визуализация",
-      "minutes": 3,
-      "note": "картинка дня, закрой глаза и проживи сцену"
+      "minutes": 2.7,
+      "note": "картинка дня, закрой глаза и проживи сцену",
+      "src": "audio/vizualizaciya-celey.mp3",
+      "marks": "visual"
     },
     {
       "id": "breath",

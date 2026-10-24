@@ -664,7 +664,7 @@ function viewSleep(){
   var last=w[w.length-1];
   var avgS=w.reduce(function(a,x){ return a+x.sleep; },0)/w.length;
   var avgSt=w.reduce(function(a,x){ return a+x.stress; },0)/w.length;
-  var st=['','#A8D2C4','#F2C8A0','#E8899F'];
+  var st=['','#A8D2C4','#F2C8A0','#E8899F'], stN=['','низкий','средний','высокий'];
   function hm(v){ var hh=Math.floor(v),m=Math.round((v-hh)*60); return hh+':'+String(m).padStart(2,'0'); }
   var r=52,c=2*Math.PI*r,frac=clamp(last.sleep/goal,0,1);
   return '<section class="card"><div class="ch"><h2>Сон</h2><span class="r">цель '+goal+' часов</span></div>'
@@ -677,9 +677,10 @@ function viewSleep(){
     + '<div class="cbox"><b class="num">'+esc(last.bed)+'</b><span>отбой</span></div></div>'
     + '<div class="rings">'+w.map(function(x){
         return miniRing(x.sleep/goal,DW2[parse(x.date).getDay()],x.sleep>=7?'url(#gring)':'#C8AFD7',''); }).join('')+'</div>'
-    + '<div class="ch" style="margin:22px 0 10px"><h2>Стресс</h2><span class="r">в среднем '+avgSt.toFixed(1)+' из 3</span></div>'
+    + '<div class="ch" style="margin:22px 0 10px"><h2>Стресс</h2><span class="r">в среднем: '+stN[clamp(Math.round(avgSt),1,3)]+'</span></div>'
     + '<div class="rings">'+w.map(function(x){
-        return miniRing(x.stress/3,DW2[parse(x.date).getDay()],st[x.stress],String(x.stress)); }).join('')+'</div>'
+        return miniRing(x.stress/3,DW2[parse(x.date).getDay()],st[x.stress],''); }).join('')+'</div>'
+    + '<p class="mini" style="margin-top:8px">'+w.map(function(x){ return DW2[parse(x.date).getDay()]+': '+stN[clamp(x.stress,1,3)]; }).join(' · ')+'</p>'
     + '<p class="mini">Сон и стресс приходят '+esc(D.health.source||'из таблицы')+'.</p></section>';
 }
 /* ---------- 3. Практики ---------- */
