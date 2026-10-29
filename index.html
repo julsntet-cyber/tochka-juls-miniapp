@@ -109,8 +109,7 @@ h2{margin:0;font-size:18px;font-weight:800;letter-spacing:-.01em}
 .row .box{width:26px;height:26px;border-radius:50%;border:1.6px solid rgba(36,28,32,.16);flex:none;display:flex;
   align-items:center;justify-content:center;background:rgba(255,255,255,.7);color:var(--acc-ink);padding:0;cursor:pointer}
 .row.on .box{background:linear-gradient(135deg,var(--acc),var(--acc-2));border-color:transparent;color:#fff}
-.row.main{border-color:var(--acc);background:linear-gradient(135deg,rgba(232,137,159,.14),rgba(242,174,158,.14))}
-.row.main.on{background:rgba(255,255,255,.46)}
+.card.main{border-color:rgba(232,137,159,.5);background:linear-gradient(145deg,rgba(255,255,255,.7),rgba(249,213,222,.5))}
 .row.on .t b{text-decoration:line-through;color:var(--mute)}
 .row .t{flex:1;min-width:0}
 .row .t b{display:block;font-size:15px;font-weight:700}
@@ -612,17 +611,27 @@ function viewToday(){
         var f=i<p.idx?100:i>p.idx?0:clamp(Math.round((diffDays(parse(x.from),parse(todayStr()))+1)/(diffDays(parse(x.from),parse(x.to))+1)*100),0,100);
         return '<div class="'+(i===p.idx?'cur':'')+'"><i><u style="width:'+f+'%"></u></i>'+esc(x.name)+'</div>'; }).join('')
     + '</div>'+bridgeLine()+'</section>';
-  var tasks=todaysTasks().concat(todaysExtra()),tdone=0;
-  tasks=tasks.slice().sort(function(a,b){ return (b.main?1:0)-(a.main?1:0); });
-  tasks.forEach(function(x){ if(d.tasks[x.id]) tdone++; });
-  h+='<section class="card"><div class="ch"><h2>Задачи дня</h2><span class="r num">'+tdone+' из '+tasks.length+'</span></div>'
-    + (!tasks.length?'<p class="mini">На сегодня задач от бота пока нет — пришли их боту в Telegram.</p>':'')
-    + tasks.map(function(x){
-        return '<button class="row'+(d.tasks[x.id]?' on':'')+(x.main?' main':'')+'" data-a="task" data-k="'+esc(x.id)+'">'
-          + '<span class="box">'+(d.tasks[x.id]?ico('check',14):'')+'</span>'
-          + '<span class="t"><b>'+(x.main?'🎯 ':'')+esc(x.title)+(x.tag?'<span class="tag">'+esc(x.tag)+'</span>':'')+'</b>'
-          + '<span>'+esc(x.time||'')+'</span></span></button>'; }).join('')
+  var allTasks=todaysTasks().concat(todaysExtra());
+  var mainTasks=allTasks.filter(function(x){ return x.main; }), restTasks=allTasks.filter(function(x){ return !x.main; });
+  var mainDone=mainTasks.filter(function(x){ return d.tasks[x.id]; }).length;
+  function taskRow(x){
+    return '<button class="row'+(d.tasks[x.id]?' on':'')+'" data-a="task" data-k="'+esc(x.id)+'">'
+      + '<span class="box">'+(d.tasks[x.id]?ico('check',14):'')+'</span>'
+      + '<span class="t"><b>'+esc(x.title)+(x.tag?'<span class="tag">'+esc(x.tag)+'</span>':'')+'</b>'
+      + '<span>'+esc(x.time||'')+'</span></span></button>';
+  }
+  h+='<section class="card main"><div class="ch"><h2>🎯 Главное</h2>'+(mainTasks.length?'<span class="r num">'+mainDone+' из '+mainTasks.length+'</span>':'')+'</div>'
+    + (!allTasks.length?'<p class="mini">На сегодня задач от бота пока нет — пришли их боту в Telegram.</p>'
+      : !mainTasks.length?'<p class="mini">Главная задача на сегодня ещё не поставлена.</p>'
+      : mainTasks.map(taskRow).join(''))
+    + '</section>';
+  h+='<section class="card"><div class="ch"><h2>Остальное</h2>'+(restTasks.length?'<span class="r num">'+restTasks.filter(function(x){return d.tasks[x.id];}).length+' из '+restTasks.length+'</span>':'')+'</div>'
+    + (restTasks.length?restTasks.map(taskRow).join(''):'<p class="mini">Больше ничего — весь фокус на главном.</p>')
     + '<div class="addrow"><input id="taskIn" placeholder="Новая задача" data-keep="1"><button class="pill acc" data-a="taskAdd">Добавить</button></div></section>';
+  var v=(D.visions||[])[vIdx%((D.visions||[]).length||1)];
+  if(v) h+='<section class="card vision"><img src="'+esc(v.image)+'" alt="картинка богатой жизни" data-a="vision">'
+    + '<div class="copy"><p>'+esc(v.text)+'</p><div class="bridge">'+esc(v.bridge)+'</div></div>'
+    + '<div class="vdots">'+(D.visions||[]).map(function(_,i){ return '<i class="'+(i===vIdx?'on':'')+'"></i>'; }).join('')+'</div></section>';
   var ns=normState(d),nc=normCount(d),nt=normTotal();
   h+='<section class="card"><div class="ch"><h2>Норма дня</h2><span class="r">'+nc+' из '+nt+'</span></div>'
     + '<div class="norm"><div class="ring">'+ringSvg(Math.round(nc/nt*100))+'<b>'+nc+'<span>из '+nt+'</span></b></div>'
@@ -632,10 +641,6 @@ function viewToday(){
         return '<span class="nb'+(ns[x.id]?' on':'')+'">'+(ns[x.id]?ico('check',11):'')+esc(x.title)+'</span>'; }).join('')+'</div></div></div>'
     + (dayFull(d)?'<div class="done">'+ico('check',14)+'День засчитан</div>':'')
     + '</section>';
-  var v=(D.visions||[])[vIdx%((D.visions||[]).length||1)];
-  if(v) h+='<section class="card vision"><img src="'+esc(v.image)+'" alt="картинка богатой жизни" data-a="vision">'
-    + '<div class="copy"><p>'+esc(v.text)+'</p><div class="bridge">'+esc(v.bridge)+'</div></div>'
-    + '<div class="vdots">'+(D.visions||[]).map(function(_,i){ return '<i class="'+(i===vIdx?'on':'')+'"></i>'; }).join('')+'</div></section>';
   return h;
 }
 /* ---------- 2. Здоровье ---------- */
