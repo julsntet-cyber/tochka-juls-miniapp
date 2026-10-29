@@ -353,6 +353,20 @@ body[data-tab="practices"]{--bg:#FBF3DF;--b1:#FBE8B8;--b2:#F6EAD2;--b3:#FFF4DC;-
 .voicebtn .pulse{width:10px;height:10px;border-radius:50%;background:var(--acc);display:block}
 .voicebtn.rec .pulse{animation:pulse 1.1s infinite}
 @keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.35;transform:scale(1.35)}}
+/* ---------- деньги ---------- */
+.bar{height:8px;border-radius:8px;background:rgba(36,28,32,.08);overflow:hidden;margin-top:12px}
+.bar i{display:block;height:100%;border-radius:8px;background:linear-gradient(90deg,var(--acc-2),var(--acc))}
+.mcat{display:grid;grid-template-columns:96px 1fr auto;gap:10px;align-items:center;font-size:13px;font-weight:700;margin-top:10px}
+.mcat .bar{margin:0}
+.mcat b{font-size:13px}
+.mcat em{font-style:normal;color:var(--mute);font-weight:600}
+.ment{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--line)}
+.ment:last-of-type{border-bottom:0}
+.ment .t{flex:1;min-width:0}
+.ment .t b{display:block;font-size:14px;font-weight:700}
+.ment .t span{display:block;font-size:12px;font-weight:600;color:var(--text-2);margin-top:2px}
+.ment>b{font-size:14px;font-weight:800}
+.ment>b.plus{color:#36695A}
 /* ---------- нижнее меню ---------- */
 .nav{position:fixed;left:0;right:0;bottom:0;z-index:30;display:flex;gap:2px;justify-content:space-between;
   background:rgba(255,250,250,.78);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);
@@ -403,6 +417,7 @@ function longDate(s){ var d=parse(s); return DW[d.getDay()]+', '+d.getDate()+' '
 function shortDate(s){ var d=parse(s); return d.getDate()+'.'+String(d.getMonth()+1).padStart(2,'0'); }
 function plural(n,a,b,c){ n=Math.abs(n)%100; var m=n%10; if(n>10&&n<20)return c; if(m>1&&m<5)return b; if(m===1)return a; return c; }
 function N(n){ return Math.round(n).toLocaleString('ru-RU').replace(/,/g,' '); }
+function R(n){ return N(n)+' ₽'; }
 function esc(s){ return String(s==null?'':s).replace(/[&<>"]/g,function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]; }); }
 function clamp(n,a,b){ return Math.max(a,Math.min(b,n)); }
 /* ---------- иконки ---------- */
@@ -419,6 +434,7 @@ var IC={
   up:'<path d="M12 19V6M6.2 11.8L12 5.6l5.8 6.2" fill="none" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>',
   eye:'<path d="M2.6 12S6 5.8 12 5.8 21.4 12 21.4 12 18 18.2 12 18.2 2.6 12 2.6 12z" fill="none" stroke-width="1.8"/><circle cx="12" cy="12" r="2.9" fill="none" stroke-width="1.8"/>',
   drop:'<path d="M12 3.6c3.1 3.6 5.4 6.6 5.4 9.3a5.4 5.4 0 11-10.8 0c0-2.7 2.3-5.7 5.4-9.3z" fill="none" stroke-width="1.9" stroke-linejoin="round"/>',
+  wallet:'<rect x="3.2" y="6" width="17.6" height="13.4" rx="3.2" fill="none" stroke-width="1.8"/><path d="M3.2 9.6h13.6a2.4 2.4 0 012.4 2.4" fill="none" stroke-width="1.8"/><circle cx="16.4" cy="13.6" r="1.3"/><path d="M6 6l9.4-2.4a1.6 1.6 0 012 1.2L17.6 6" fill="none" stroke-width="1.8" stroke-linejoin="round"/>',
   wind:'<path d="M3.4 8.6h9.2a2.8 2.8 0 10-2.8-2.8M3.4 12.4h13a2.8 2.8 0 112.8 2.8M3.4 16.2h8.4a2.6 2.6 0 112.6 2.6" fill="none" stroke-width="1.8" stroke-linecap="round"/>'
 };
 function ico(n,s){ return '<svg width="'+(s||20)+'" height="'+(s||20)+'" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" aria-hidden="true">'+IC[n]+'</svg>'; }
@@ -428,7 +444,7 @@ var store={
   get:function(){ try{ var r=localStorage.getItem(KEY); return r?JSON.parse(r):null; }catch(e){ return mem; } },
   set:function(v){ mem=v; try{ localStorage.setItem(KEY,JSON.stringify(v)); }catch(e){} }
 };
-var D=null, loadError='', S=null, tab='today', vIdx=0, syncMsg='', phaseOpen=null;
+var D=null, loadError='', S=null, tab='today', vIdx=0, syncMsg='', phaseOpen=null, PRIV=null, privMsg='';
 function blankDay(){ return {path:0,faceyoga:0,water:0,training:0,iron:0,vitd:0,workout:0,breakfast:0,med_morning:0,med_evening:0,visual:0,breath:0,tasks:{}}; }
 function loadState(){
   var s=store.get()||{};
@@ -563,6 +579,13 @@ function syncPull(){
         }).catch(function(){});
     });
 }
+function privPull(){
+  if(!(D&&D.api&&D.sync&&D.sync.key)){ privMsg='nokey'; return Promise.resolve(); }
+  return fetch(D.api+'/state?v='+Date.now(),{headers:{'X-Key':D.sync.key},cache:'no-store'})
+    .then(function(r){ if(!r.ok) throw new Error(r.status); return r.json(); })
+    .then(function(j){ if(j&&j.ok){ PRIV=j; privMsg=''; } })
+    .catch(function(){ privMsg='down'; });
+}
 function paintChip(){ var c=document.getElementById('syncchip'); if(c) c.innerHTML=chipInner(); }
 function chipInner(){
   if(D&&D.demo) return '<i></i>примерные данные';
@@ -663,10 +686,68 @@ function viewHealth(){
         return '<button class="row'+(d[x.id]?' on':'')+'" data-a="supp" data-k="'+esc(x.id)+'">'
           + '<span class="box">'+(d[x.id]?ico('check',14):'')+'</span><span class="t"><b>'+esc(x.title)+'</b>'
           + '<span>'+esc(x.time)+' · '+esc(x.note)+'</span></span></button>'; }).join('')+'</section>';
+  h+=iphoneCard();
   var sp=soberParts();
   h+='<section class="card"><div class="ch"><h2>Без алкоголя</h2><span class="r">с '+shortDate(D.sober.since)+'</span></div>'
     + '<div class="counter"><div class="cbox"><b class="num">'+sp.months+'</b><span>'+plural(sp.months,'месяц','месяца','месяцев')+'</span></div>'
     + '<div class="cbox"><b class="num">'+sp.days+'</b><span>'+plural(sp.days,'день','дня','дней')+'</span></div></div></section>';
+  return h;
+}
+function privHint(what){
+  if(privMsg==='nokey') return '<p class="mini">'+what+' видно только в твоём приложении: открой его кнопкой «Мой день» в Telegram.</p>';
+  if(privMsg==='down') return '<p class="mini">Сервер сейчас не ответил. Открой приложение ещё раз чуть позже.</p>';
+  return '<p class="mini">Загружаю…</p>';
+}
+function hm(v){ var hh=Math.floor(v),m=Math.round((v-hh)*60); if(m===60){hh++;m=0;} return hh+':'+String(m).padStart(2,'0'); }
+function iphoneCard(){
+  var H=PRIV&&PRIV.health;
+  var head='<section class="card"><div class="ch"><h2>С iPhone</h2><span class="r">Apple Health</span></div>';
+  if(!H) return head+privHint('Данные Здоровья')+'</section>';
+  if(!H.has_data) return head+'<p class="mini">Пока пусто. Как только iPhone пришлёт данные (настройка у бота), здесь будут шаги, сон и активность, а бот начнёт подсказывать по ним.</p></section>';
+  var t=H.today||{}, a=H.avg||{};
+  function box(v,l){ return '<div class="cbox"><b class="num">'+v+'</b><span>'+l+'</span></div>'; }
+  var steps=H.week.map(function(d){ return d.steps||0; }), smax=Math.max.apply(null,steps.concat([1]));
+  return head
+    + '<div class="two">'+box(t.steps!=null?N(t.steps):'—','шагов сегодня')+box(t.sleep_h!=null?hm(t.sleep_h):'—','сон ночью')+'</div>'
+    + '<div class="two">'+box(t.exercise_min!=null?Math.round(t.exercise_min):'—','активных минут')+box(t.stand_h!=null?Math.round(t.stand_h):'—','часов стоя')+'</div>'
+    + '<div class="wbars">'+H.week.map(function(d,i){
+        return '<div><i class="'+(i===H.week.length-1?'last':'')+'" style="height:'+clamp(Math.round((d.steps||0)/smax*100),6,100)+'%"></i><span>'+DW2[parse(d.date).getDay()]+'</span></div>'; }).join('')+'</div>'
+    + '<p class="mini">Шаги за неделю. В среднем '+(a.steps!=null?N(a.steps):'—')+' шагов и '+(a.sleep_h!=null?hm(a.sleep_h):'—')+' сна. Выводы и советы присылает бот.</p></section>';
+}
+/* ---------- 6. Деньги ---------- */
+function viewMoney(){
+  var h=top('Деньги','путь к точке Б')+banner();
+  var M=PRIV&&PRIV.money;
+  if(!M) return h+'<section class="card">'+privHint('Деньги')+'</section>';
+  var g=M.goal;
+  h+='<section class="card lock"><div class="ch"><h2>Точка Б</h2>'+(g?'<span class="r">до '+shortDate(g.deadline)+'</span>':'')+'</div>'
+    + (g? '<div class="row1"><span class="big num">'+Math.round(g.pct)+'%</span><span class="sub">'+esc(g.title)+'</span></div>'
+        + '<div class="bar"><i style="width:'+clamp(g.pct,0,100)+'%"></i></div>'
+        + '<p class="muted" style="margin:10px 0 0">'+R(g.saved)+' из '+R(g.amount)+' · нужно откладывать ~'+R(g.per_month)+' в месяц</p>'
+      : '<p class="muted" style="margin:0">Цель ещё не задана. Скажи боту одной фразой: «цель 300 000 к 31 марта на подушку».</p>')
+    + '</section>';
+  var m=M.month;
+  function tile(v,l,c){ return '<div class="cbox" style="background:'+c+'"><b class="num" style="font-size:20px">'+R(v)+'</b><span>'+l+'</span></div>'; }
+  h+='<section class="card"><div class="ch"><h2>'+esc(m.name.replace(/^./,function(c){ return c.toUpperCase(); }))+'</h2><span class="r">неделя: −'+R(M.week.expense)+'</span></div>'
+    + '<div class="two">'+tile(m.income,'пришло','rgba(168,210,196,.32)')+tile(m.expense,'потратила','rgba(232,137,159,.22)')+tile(m.saved,'отложила','rgba(205,188,231,.32)')+'</div></section>';
+  var notes=(M.insight?[M.insight]:[]).concat(M.flags||[]);
+  if(notes.length) h+='<section class="card"><div class="ch"><h2>Что я вижу</h2></div>'
+    + notes.map(function(x,i){ return '<p class="'+(i===0&&M.insight?'':'muted')+'" style="margin:'+(i?'8px':'0')+' 0 0;font-size:14px;font-weight:600">'+esc(x)+'</p>'; }).join('')+'</section>';
+  var cats=Object.keys(m.cats||{}), lim=M.limits||{}, cmax=Math.max.apply(null,cats.map(function(k){ return m.cats[k]; }).concat([1]));
+  h+='<section class="card"><div class="ch"><h2>Куда уходят</h2></div>'
+    + (cats.length? cats.map(function(k){
+        var v=m.cats[k], L=lim[k], over=L&&v>L;
+        return '<div class="mcat"><span>'+esc(k)+'</span><div class="bar"><i style="width:'+clamp(Math.round((L?v/L:v/cmax)*100),3,100)+'%'+(over?';background:var(--acc-ink)':'')+'"></i></div>'
+          + '<b class="num">'+R(v)+(L?'<em> / '+R(L)+'</em>':'')+'</b></div>'; }).join('')
+      : '<p class="mini">В этом месяце трат пока нет.</p>')
+    + '</section>';
+  var ic={expense:'−',income:'+',saved:'+'};
+  h+='<section class="card"><div class="ch"><h2>Последние записи</h2></div>'
+    + ((M.last||[]).length? M.last.map(function(e){
+        return '<div class="ment"><span class="t"><b>'+esc(e.cat)+'</b><span>'+shortDate(e.date)+(e.note?' · '+esc(e.note):'')+(e.kind==='saved'?' · отложено':'')+'</span></span>'
+          + '<b class="num '+(e.kind==='expense'?'':'plus')+'">'+ic[e.kind]+R(e.amount)+'</b></div>'; }).join('')
+      : '<p class="mini">Записей пока нет.</p>')
+    + '<p class="mini">Траты и доходы — голосом боту: «потратила 450 на такси», «пришло 15 000 за интеграцию», «отложила 7 500». Перед покупкой спроси: «хочу купить…» — разберём вместе.</p></section>';
   return h;
 }
 /* ---------- 3. Практики ---------- */
@@ -852,13 +933,13 @@ function viewError(){
 }
 /* ---------- сборка ---------- */
 var TABS=[{k:'today',t:'Сегодня',i:'sun'},{k:'health',t:'Здоровье',i:'drop'},{k:'practices',t:'Практики',i:'lotus'},
-          {k:'blog',t:'Блог',i:'chart'},{k:'days',t:'Стратегия',i:'cal'}];
+          {k:'blog',t:'Блог',i:'chart'},{k:'money',t:'Деньги',i:'wallet'},{k:'days',t:'Стратегия',i:'cal'}];
 function render(){
   var v=document.getElementById('view'),nav=document.getElementById('nav'),keep={};
   Array.prototype.forEach.call(v.querySelectorAll('[data-keep]'),function(el){ if(el.value) keep[el.id]=el.value; });
   document.body.dataset.tab=tab;
   v.innerHTML = !D ? viewError() : tab==='today'?viewToday() : tab==='health'?viewHealth() : tab==='practices'?viewPractices()
-    : tab==='blog'?viewBlog() : viewDays();
+    : tab==='blog'?viewBlog() : tab==='money'?viewMoney() : viewDays();
   nav.innerHTML = TABS.map(function(x){
     return '<button class="'+(tab===x.k?'on':'')+'" data-a="tab" data-k="'+x.k+'">'+ico(x.i,20)+x.t+'</button>'; }).join('');
   Object.keys(keep).forEach(function(id){ var el=document.getElementById(id); if(el&&!el.value) el.value=keep[id]; });
@@ -1007,14 +1088,14 @@ document.addEventListener('keydown',function(ev){
   }
 });
 document.addEventListener('visibilitychange',function(){
-  if(!document.hidden&&D&&!document.getElementById('sheet').innerHTML){ syncPull().then(render); }
+  if(!document.hidden&&D&&!document.getElementById('sheet').innerHTML){ Promise.all([syncPull(),privPull()]).then(render); }
 });
 /* ---------- запуск ---------- */
 function boot(){
   loadError='';
   fetch('data.json?v='+Date.now(),{cache:'no-store'})
     .then(function(r){ if(!r.ok) throw new Error('data.json: ответ '+r.status+'.'); return r.json(); })
-    .then(function(j){ D=j; applyKey(); S=loadState(); seedDemo(); render(); if(syncOn()) syncPull().then(render); })
+    .then(function(j){ D=j; applyKey(); S=loadState(); seedDemo(); render(); if(syncOn()) syncPull().then(render); privPull().then(render); })
     .catch(function(e){ D=null; loadError=(e&&e.message)?e.message:'Не удалось прочитать data.json.'; render(); });
 }
 render();
