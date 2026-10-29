@@ -107,6 +107,7 @@
     "sleepGoal": 8,
     "week": []
   },
+  "tasksDate": "2026-10-29",
   "tasks": [
     {
       "id": "t1",
@@ -251,8 +252,8 @@
       "date": "2026-12-31"
     },
     "start": {
-      "value": 1471,
-      "date": "2026-10-23"
+      "value": 1179,
+      "date": "2026-09-28"
     },
     "checkpoints": [
       {

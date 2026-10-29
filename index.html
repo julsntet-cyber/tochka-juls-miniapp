@@ -80,8 +80,10 @@ h2{margin:0;font-size:18px;font-weight:800;letter-spacing:-.01em}
 /* ---------- шапка Lock In ---------- */
 .lock{background:linear-gradient(145deg,rgba(255,255,255,.66),rgba(249,213,222,.42))}
 .phases{display:flex;gap:6px;flex-wrap:wrap}
-.ph{border:1px solid var(--edge);border-radius:99px;padding:6px 12px;font-size:12px;font-weight:700;color:var(--text-2);background:rgba(255,255,255,.45)}
+.ph{appearance:none;border:1px solid var(--edge);border-radius:99px;padding:6px 12px;font:700 12px Manrope,inherit;color:var(--text-2);background:rgba(255,255,255,.45);cursor:pointer}
 .ph.on{background:linear-gradient(135deg,rgba(232,137,159,.4),rgba(242,174,158,.4));color:var(--acc-ink)}
+.phfocus{margin:10px 0 0;padding:11px 13px;background:rgba(255,255,255,.4);border:1px solid var(--edge);border-radius:16px;font-size:13px;font-weight:600;color:var(--text-2)}
+.phfocus b{color:var(--text);font-weight:800}
 .lock .row1{display:flex;align-items:flex-end;gap:10px;margin-top:16px}
 .lock .row1 .sub{padding-bottom:7px;color:var(--text-2);font-size:14px;font-weight:700}
 .tl{display:flex;gap:6px;margin-top:14px}
@@ -193,7 +195,7 @@ h2{margin:0;font-size:18px;font-weight:800;letter-spacing:-.01em}
 /* ---------- практики: тёплый кремово-жёлтый ---------- */
 body[data-tab="practices"]{--bg:#FBF3DF;--b1:#FBE8B8;--b2:#F6EAD2;--b3:#FFF4DC;--acc:#E0B45F;--acc-2:#EFCB86;
   --acc-soft:rgba(224,180,95,.2);--acc-ink:#8A6520;--shadow:0 14px 34px rgba(170,140,70,.14)}
-.hero{position:relative;border-radius:var(--r);overflow:hidden;margin-top:14px;aspect-ratio:736/977;max-width:100%;
+.hero{position:relative;border-radius:var(--r);overflow:hidden;margin:14px auto 0;aspect-ratio:736/977;max-width:230px;
   border:1px solid var(--edge);box-shadow:var(--shadow);display:flex;align-items:flex-end}
 .hero .ph{position:absolute;inset:0;background:
   radial-gradient(60% 55% at 22% 22%,rgba(255,255,255,.95),transparent 62%),
@@ -425,7 +427,7 @@ var store={
   get:function(){ try{ var r=localStorage.getItem(KEY); return r?JSON.parse(r):null; }catch(e){ return mem; } },
   set:function(v){ mem=v; try{ localStorage.setItem(KEY,JSON.stringify(v)); }catch(e){} }
 };
-var D=null, loadError='', S=null, tab='today', vIdx=0, syncMsg='';
+var D=null, loadError='', S=null, tab='today', vIdx=0, syncMsg='', phaseOpen=null;
 function blankDay(){ return {path:0,faceyoga:0,water:0,training:0,iron:0,vitd:0,workout:0,breakfast:0,med_morning:0,med_evening:0,visual:0,breath:0,tasks:{}}; }
 function loadState(){
   var s=store.get()||{};
@@ -439,6 +441,8 @@ function loadState(){
 }
 function save(){ store.set(S); }
 function day(d){ d=d||todayStr(); if(!S.days[d]) S.days[d]=blankDay(); return S.days[d]; }
+function todaysExtra(){ return (S.extraTasks||[]).filter(function(x){ return !x.addedDate || x.addedDate===todayStr(); }); }
+function todaysTasks(){ return (D.tasksDate && D.tasksDate!==todayStr()) ? [] : (D.tasks||[]); }
 /* ---------- примерные данные ---------- */
 function seedDemo(){
   if(!D.demo || S.seeded) return;
@@ -589,17 +593,20 @@ function viewToday(){
   var d=day(),p=phaseInfo();
   var af=(D.affirmations||[]);
   var h=top(esc(af.length?af[parse(todayStr()).getDate()%af.length]:'Привет, '+D.user.name))+banner();
+  var openIdx=phaseOpen!=null?phaseOpen:p.idx, openPh=(D.challenge.phases||[])[openIdx]||p.cur;
   h+='<section class="card lock"><div class="phases">'
-    + (D.challenge.phases||[]).map(function(x,i){ return '<span class="ph'+(i===p.idx?' on':'')+'">'+esc(x.name)+'</span>'; }).join('')
+    + (D.challenge.phases||[]).map(function(x,i){ return '<button class="ph'+(i===p.idx?' on':'')+'" data-a="phase" data-k="'+i+'">'+esc(x.name)+'</button>'; }).join('')
     + '</div><div class="row1"><span class="big num">'+p.n+'</span><span class="sub">из '+p.total+' дней '+esc(D.challenge.title)+'</span></div>'
-    + '<p class="muted" style="margin:10px 0 0">Неделя '+p.week+' · '+esc(p.cur.focus||'')+'</p>'
+    + '<p class="muted" style="margin:10px 0 0">Неделя '+p.week+'</p>'
+    + '<div class="phfocus"><b>'+esc(openPh.name)+'</b> · '+esc(openPh.focus||'')+(openIdx!==p.idx?' <span style="opacity:.6">(не текущая фаза)</span>':'')+'</div>'
     + '<div class="tl">'+(D.challenge.phases||[]).map(function(x,i){
         var f=i<p.idx?100:i>p.idx?0:clamp(Math.round((diffDays(parse(x.from),parse(todayStr()))+1)/(diffDays(parse(x.from),parse(x.to))+1)*100),0,100);
         return '<div class="'+(i===p.idx?'cur':'')+'"><i><u style="width:'+f+'%"></u></i>'+esc(x.name)+'</div>'; }).join('')
     + '</div></section>';
-  var tasks=(D.tasks||[]).concat(S.extraTasks||[]),tdone=0;
+  var tasks=todaysTasks().concat(todaysExtra()),tdone=0;
   tasks.forEach(function(x){ if(d.tasks[x.id]) tdone++; });
   h+='<section class="card"><div class="ch"><h2>Задачи дня</h2><span class="r num">'+tdone+' из '+tasks.length+'</span></div>'
+    + (!tasks.length?'<p class="mini">На сегодня задач от бота пока нет — пришли их боту в Telegram.</p>':'')
     + tasks.map(function(x){
         return '<button class="row'+(d.tasks[x.id]?' on':'')+'" data-a="task" data-k="'+esc(x.id)+'">'
           + '<span class="box">'+(d.tasks[x.id]?ico('check',14):'')+'</span>'
@@ -645,43 +652,7 @@ function viewHealth(){
   h+='<section class="card"><div class="ch"><h2>Без алкоголя</h2><span class="r">с '+shortDate(D.sober.since)+'</span></div>'
     + '<div class="counter"><div class="cbox"><b class="num">'+sp.months+'</b><span>'+plural(sp.months,'месяц','месяца','месяцев')+'</span></div>'
     + '<div class="cbox"><b class="num">'+sp.days+'</b><span>'+plural(sp.days,'день','дня','дней')+'</span></div></div></section>';
-  h+=viewSleep();
   return h;
-}
-function miniRing(frac,label,color,txt){
-  var r=15.5,c=2*Math.PI*r;
-  return '<div class="mr"><svg viewBox="0 0 40 40"><circle cx="20" cy="20" r="'+r+'" fill="none" stroke="rgba(36,28,32,.08)" stroke-width="4.5"/>'
-    + '<circle cx="20" cy="20" r="'+r+'" fill="none" stroke="'+color+'" stroke-width="4.5" stroke-linecap="round" '
-    + 'transform="rotate(-90 20 20)" stroke-dasharray="'+(c*clamp(frac,0,1)).toFixed(1)+' '+c.toFixed(1)+'"/>'
-    + (txt?'<text x="20" y="24" text-anchor="middle" font-size="12" font-weight="700" fill="#6F626A">'+txt+'</text>':'')
-    + '</svg><span>'+label+'</span></div>';
-}
-function viewSleep(){
-  var w=((D.health&&D.health.week)||[]).filter(function(x){ return x&&typeof x.sleep==='number'&&typeof x.stress==='number'; });
-  var goal=((D.health&&D.health.sleepGoal)||8);
-  if(!w.length) return '<section class="card"><div class="ch"><h2>Сон</h2><span class="r">цель '+goal+' часов</span></div>'
-    + '<p class="mini">Пока пусто. Данные о сне и стрессе появятся, когда они попадут в таблицу.</p></section>';
-  var last=w[w.length-1];
-  var avgS=w.reduce(function(a,x){ return a+x.sleep; },0)/w.length;
-  var avgSt=w.reduce(function(a,x){ return a+x.stress; },0)/w.length;
-  var st=['','#A8D2C4','#F2C8A0','#E8899F'], stN=['','низкий','средний','высокий'];
-  function hm(v){ var hh=Math.floor(v),m=Math.round((v-hh)*60); return hh+':'+String(m).padStart(2,'0'); }
-  var r=52,c=2*Math.PI*r,frac=clamp(last.sleep/goal,0,1);
-  return '<section class="card"><div class="ch"><h2>Сон</h2><span class="r">цель '+goal+' часов</span></div>'
-    + '<div class="bigring"><svg viewBox="0 0 130 130">'
-    + '<circle cx="65" cy="65" r="'+r+'" fill="none" stroke="rgba(36,28,32,.07)" stroke-width="13"/>'
-    + '<circle cx="65" cy="65" r="'+r+'" fill="none" stroke="url(#gring)" stroke-width="13" stroke-linecap="round" '
-    + 'transform="rotate(-90 65 65)" stroke-dasharray="'+(c*frac).toFixed(1)+' '+c.toFixed(1)+'"/></svg>'
-    + '<div class="c"><b class="num">'+hm(last.sleep)+'</b><span>прошлой ночью</span></div></div>'
-    + '<div class="two"><div class="cbox"><b class="num">'+hm(avgS)+'</b><span>в среднем за неделю</span></div>'
-    + '<div class="cbox"><b class="num">'+esc(last.bed)+'</b><span>отбой</span></div></div>'
-    + '<div class="rings">'+w.map(function(x){
-        return miniRing(x.sleep/goal,DW2[parse(x.date).getDay()],x.sleep>=7?'url(#gring)':'#C8AFD7',''); }).join('')+'</div>'
-    + '<div class="ch" style="margin:22px 0 10px"><h2>Стресс</h2><span class="r">в среднем: '+stN[clamp(Math.round(avgSt),1,3)]+'</span></div>'
-    + '<div class="rings">'+w.map(function(x){
-        return miniRing(x.stress/3,DW2[parse(x.date).getDay()],st[x.stress],''); }).join('')+'</div>'
-    + '<p class="mini" style="margin-top:8px">'+w.map(function(x){ return DW2[parse(x.date).getDay()]+': '+stN[clamp(x.stress,1,3)]; }).join(' · ')+'</p>'
-    + '<p class="mini">Сон и стресс приходят '+esc(D.health.source||'из таблицы')+'.</p></section>';
 }
 /* ---------- 3. Практики ---------- */
 function viewPractices(){
@@ -776,7 +747,7 @@ function dayEvents(k){
     var n=nextDue(p);
     if(ymd(n.date)===k) out.push({time:'',title:p.title,note:'оплата или показания'});
   });
-  if(k===todayStr()) (D.tasks||[]).concat(S.extraTasks||[]).forEach(function(x){
+  if(k===todayStr()) todaysTasks().concat(todaysExtra()).forEach(function(x){
     out.push({time:x.time||'',title:x.title,note:x.tag||'задача дня',task:x.id});
   });
   return out.sort(function(a,b){ return (a.time||'99').localeCompare(b.time||'99'); });
@@ -831,7 +802,7 @@ function viewDays(){
               return '<span class="nb'+(ns[x.id]?' on':'')+'">'+(ns[x.id]?ico('check',11):'')+esc(x.title)+'</span>'; }).join('')+'</div>'
           + (n>=nt?'<div class="done">'+ico('check',14)+'День засчитан</div>':''); })()
     + '</section>';
-  var ev=dayEvents(sel),dsel=S.days[sel]||blankDay();
+  var ev=dayEvents(sel);
   h+='<section class="card"><div class="ch"><h2>'+MN2[parse(sel).getMonth()].replace(/^./,function(c){ return c.toUpperCase(); })+'</h2>'
     + '<span class="r">'+shortDate(wk[0])+' – '+shortDate(wk[6])+'</span></div>'
     + '<div class="weekcal">'+wk.map(function(k){
@@ -851,14 +822,6 @@ function viewDays(){
         return '<div class="ti"><span class="ic">'+ico('cal',16)+'</span><span class="t"><b>'+esc(x.p.title)+'</b>'
           + '<span>'+(x.p.rule.type==='weekly'?'каждый '+DW[x.p.rule.dow]:'до '+x.n.date.getDate()+' '+MN[x.n.date.getMonth()])+' · '+dueText(x.n.days)+'</span></span>'
           + '<span class="dot'+(soon?' on':'')+'">'+(soon?ico('check',11):'')+'</span></div>'; }).join('')
-    + '</div></section>';
-  var mood=dsel.mood||'',me=(D.emotions.moods||[]).filter(function(x){ return x.id===mood; })[0];
-  h+='<section class="card orbcard"><div class="ch"><h2>Дневник эмоций</h2>'
-    + '<span class="r">'+((S.emotions||[]).length?S.emotions.length+' '+plural(S.emotions.length,'запись','записи','записей'):'пока пусто')+'</span></div>'
-    + '<button class="emoorb" data-a="emoOpen">'+(me?esc(me.title):'Записать')+'<span>'+(me?'нажми, чтобы дописать':esc(D.emotions.question||'что чувствую сейчас'))+'</span></button>'
-    + '<div class="elist">'+(S.emotions||[]).slice(0,5).map(function(e){
-        var m=(D.emotions.moods||[]).filter(function(x){ return x.id===e.mood; })[0];
-        return '<div class="eitem"><b>'+esc(m?m.title:'запись')+'</b>'+(e.note?'<p>'+esc(e.note)+'</p>':'')+'<span>'+longDate(e.date)+'</span></div>'; }).join('')
     + '</div></section>';
   return h;
 }
@@ -962,21 +925,7 @@ function stopBreath(done){
 function setMark(k,v){
   var d=day(); d[k]=v!=null?v:(d[k]?0:1); save(); render(); syncPush();
 }
-
-function openEmotions(){
-  var d=day();
-  var inner='<div class="grab"></div><h3>Дневник эмоций</h3><div class="note">'+esc(D.emotions.question||'что чувствую сейчас')+'</div>'
-    + '<div class="moods">'+(D.emotions.moods||[]).map(function(m){
-        return '<button class="mood'+(d.mood===m.id?' on':'')+'" data-a="emoPick" data-k="'+esc(m.id)+'">'+esc(m.title)+'</button>'; }).join('')+'</div>'
-    + '<textarea id="emoText" placeholder="Пара слов, если хочется">'+esc(d.note||'')+'</textarea>'
-    + '<button class="voicebtn" data-a="voice"><span class="pulse"></span><span class="lbl">Записать голосом</span></button>'
-    + '<p class="mini" id="voiceNote">Голос превращается в текст прямо здесь.</p>'
-    + '<div class="sheetfoot"><button class="pill acc" data-a="emoWrite">Записать</button>'
-    + '<button class="pill" data-a="close">Закрыть</button></div>';
-  document.getElementById('sheet').innerHTML='<div class="scrim" data-a="close"></div><div class="sheet">'+inner+'</div>';
-}
 /* ---------- действия ---------- */
-var REC=null;
 var ACTIONS={
   tab:function(k){ if(k===tab) return; tab=k; closeSheet(); window.scrollTo(0,0); render(); haptic('light'); },
   water:function(k){ var d=day(), n=+k, gl=D.water.glassMl; var cur=Math.round(d.water/gl);
@@ -989,7 +938,8 @@ var ACTIONS={
     if(b){ b.textContent=d[k]?'Отмечено сегодня':'Отметить пройденной'; b.className='pill'+(d[k]?' ghost':''); } haptic('medium'); },
   task:function(k){ var d=day(); d.tasks[k]=d.tasks[k]?0:1; save(); render(); haptic('light'); syncPush(); },
   taskAdd:function(){ var el=document.getElementById('taskIn'); if(!el||!el.value.trim()) return;
-    S.extraTasks.push({id:'x'+Date.now(),title:el.value.trim(),time:'',tag:''}); el.value=''; save(); render(); syncPush(); },
+    S.extraTasks.push({id:'x'+Date.now(),title:el.value.trim(),time:'',tag:'',addedDate:todayStr()}); el.value=''; save(); render(); syncPush(); },
+  phase:function(k){ var ni=+k; phaseOpen=(phaseOpen===ni)?null:ni; render(); haptic('light'); },
   vision:function(){ vIdx=(vIdx+1)%((D.visions||[]).length||1); var d=day(); d.visual=1; save();
     if(document.querySelector('.sheet')) openPractice('visual'); else render(); syncPush(); },
   cp:function(k){ var p=k.split('|'), s=S.content[p[0]]||(S.content[p[0]]={}); s[p[1]]=s[p[1]]?0:1; save(); render(); haptic('light'); syncPush(); },
@@ -998,37 +948,11 @@ var ACTIONS={
     S.followers=n; el.value=''; save(); render(); syncPush(); },
   selDay:function(k){ S.sel=k; save(); render(); haptic('light'); },
   pathDay:function(k){ if(parse(k)>parse(todayStr())) return; var d=day(k); d.path=d.path?0:1; save(); render(); haptic('light'); },
-  emoOpen:function(){ openEmotions(); haptic('light'); },
-  emoPick:function(k){ var d=day(); d.mood=d.mood===k?'':k; save();
-    Array.prototype.forEach.call(document.querySelectorAll('.sheet .mood'),function(el){ el.classList.toggle('on',el.dataset.k===d.mood); }); },
-  emoWrite:function(){ var el=document.getElementById('emoText'), d=day();
-    if(!d.mood&&!(el&&el.value.trim())) { closeSheet(); return; }
-    d.note=el?el.value.trim():'';
-    S.emotions=(S.emotions||[]).filter(function(e){ return e.date!==todayStr(); });
-    S.emotions.unshift({date:todayStr(),mood:d.mood,note:d.note});
-    save(); closeSheet(); render(); haptic('medium'); },
   ideas:function(){ S.ideasOpen=!S.ideasOpen; save(); render(); haptic('light'); },
   ideaAdd:function(){ var el=document.getElementById('ideaIn'); if(!el||!el.value.trim()) return;
     if(!S.ideas||!S.ideas.length) S.ideas=(D.blog.ideas||[]).slice();
     S.ideas.unshift({id:'i'+Date.now(),text:el.value.trim(),tag:''});
     el.value=''; S.ideasOpen=true; save(); render(); syncPush(); },
-  voice:function(){
-    var SR=window.SpeechRecognition||window.webkitSpeechRecognition, el=document.getElementById('emoText'),
-        btn=document.querySelector('.voicebtn'), note=document.getElementById('voiceNote');
-    if(!SR){ if(note) note.textContent='Диктовка не работает в этом приложении. Надиктуй боту в Телеграме, он положит запись сюда.'; return; }
-    if(REC){ REC.stop(); return; }
-    REC=new SR(); REC.lang='ru-RU'; REC.interimResults=true; REC.continuous=true;
-    var base=el?el.value:'';
-    REC.onresult=function(ev){
-      var txt='';
-      for(var i=ev.resultIndex;i<ev.results.length;i++) txt+=ev.results[i][0].transcript;
-      if(el) el.value=(base?base+' ':'')+txt;
-    };
-    REC.onerror=function(){ if(note) note.textContent='Микрофон не дал доступ. Можно написать текстом.'; };
-    REC.onend=function(){ REC=null; if(btn){ btn.classList.remove('rec'); btn.querySelector('span.lbl').textContent='Записать голосом'; } };
-    try{ REC.start(); if(btn){ btn.classList.add('rec'); btn.querySelector('span.lbl').textContent='Идёт запись, нажми чтобы остановить'; } }
-    catch(e){ REC=null; }
-  },
   openPractice:function(k){ openPractice(k); haptic('light'); },
   audio:function(){ if(!A) return; var b=document.querySelector('[data-a="audio"]');
     if(A.paused){ A.play().then(function(){ if(b) b.innerHTML=ico('pause',26); }).catch(function(){
