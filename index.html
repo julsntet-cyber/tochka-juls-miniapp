@@ -519,7 +519,8 @@ function allIdeas(){
   var srv=((D.blog&&D.blog.ideas)||[]).filter(function(x){ return x.status!=='снята'&&x.status!=='отказ'&&x.status!=='снято'; });
   var ids={}; srv.forEach(function(x){ ids[x.id]=1; });
   var mine=(S.ideas||[]).filter(function(x){ return /^i\d{13}$/.test(x.id)&&!ids[x.id]; });
-  return mine.concat(srv.slice().sort(function(a,b){ return (IDEA_ORDER[a.status||'']||2)-(IDEA_ORDER[b.status||'']||2); }));
+  var rank=function(x){ var r=IDEA_ORDER[x.status||'']; return r==null?2:r; };
+  return mine.concat(srv.slice().sort(function(a,b){ return rank(a)-rank(b); }));
 }
 function safeUrl(u){ return /^https:\/\//.test(u||'')?u:''; }
 function bridgeLine(){
