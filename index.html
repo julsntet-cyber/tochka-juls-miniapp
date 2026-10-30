@@ -290,6 +290,17 @@ body[data-tab="practices"]{--bg:#FBF3DF;--b1:#FBE8B8;--b2:#F6EAD2;--b3:#FFF4DC;-
 .ideas{margin-top:14px}
 .idea{border:1px solid var(--edge);background:rgba(255,255,255,.44);border-radius:18px;padding:13px 15px;margin-top:8px}
 .idea b{font-size:15px;font-weight:700;line-height:1.35}
+.idea{display:block;width:100%;text-align:left;font:inherit;color:inherit;cursor:pointer;transition:transform .18s,background .18s}
+.idea:active{transform:scale(.985)}
+.idea.ok{border-color:rgba(232,137,159,.55);background:rgba(255,255,255,.62)}
+.idea .st{display:inline-block;border-radius:99px;padding:3px 9px;font-size:11px;font-weight:800;margin:0 6px 6px 0;background:rgba(36,28,32,.06);color:var(--mute)}
+.idea.ok .st{background:linear-gradient(135deg,var(--acc),var(--acc-2));color:#fff}
+.idea .more{margin-top:10px;font-size:13px;line-height:1.45;animation:ideaIn .22s ease-out}
+.idea .more p{margin:6px 0 0}
+.idea .more em{font-style:normal;font-weight:800;color:var(--acc-ink)}
+.idea .more a{display:inline-block;margin-top:8px;font-weight:800;color:var(--acc-ink)}
+@keyframes ideaIn{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:none}}
+@media (prefers-reduced-motion:reduce){.idea .more{animation:none}}
 /* итоги недели */
 .sum{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
 .si{background:rgba(255,255,255,.5);border:1px solid var(--edge);border-radius:18px;padding:13px 10px;text-align:center}
@@ -500,9 +511,20 @@ function phaseInfo(){
   var week=Math.floor((n-1)/7)+1;
   return {n:n,total:total,cur:cur,idx:idx,week:week};
 }
+function localFresh(){ var f=(D.blog&&D.blog.followers)||{}; return !!(S.followers&&S.followersAt&&S.followersAt>(f.asOf||'')); }
+function curFollowers(){ var f=(D.blog&&D.blog.followers)||{}; return localFresh()?S.followers:(f.current||S.followers||0); }
+function followersDate(){ return localFresh()?S.followersAt:((D.blog.followers||{}).asOf||todayStr()); }
+var IDEA_ORDER={'согласована':0,'в работе':1,'новая':2,'':2};
+function allIdeas(){
+  var srv=((D.blog&&D.blog.ideas)||[]).filter(function(x){ return x.status!=='снята'&&x.status!=='отказ'&&x.status!=='снято'; });
+  var ids={}; srv.forEach(function(x){ ids[x.id]=1; });
+  var mine=(S.ideas||[]).filter(function(x){ return /^i\d{13}$/.test(x.id)&&!ids[x.id]; });
+  return mine.concat(srv.slice().sort(function(a,b){ return (IDEA_ORDER[a.status||'']||2)-(IDEA_ORDER[b.status||'']||2); }));
+}
+function safeUrl(u){ return /^https:\/\//.test(u||'')?u:''; }
 function bridgeLine(){
   var b=D.blog; if(!b) return '';
-  var cur=S.followers||b.followers.current,goal=b.goal.value,start=b.start.value;
+  var cur=curFollowers(),goal=b.goal.value,start=b.start.value;
   var left=goal-cur,daysLeft=Math.max(1,diffDays(parse(todayStr()),parse(b.goal.date))),perDay=Math.ceil(left/daysLeft);
   if(left<=0) return '<p class="muted" style="margin:10px 0 0">Цель по подписчикам уже достигнута 🎉</p>';
   return '<p class="muted" style="margin:10px 0 0">+'+perDay+' подписчиков в день, чтобы успеть к '+N(goal)+' ('+shortDate(b.goal.date)+')</p>';
@@ -546,7 +568,7 @@ function syncPush(){
     med_morning:d.med_morning?1:0, visual:d.visual?1:0, breath:d.breath?1:0, med_evening:d.med_evening?1:0,
     tasks_plan:tasksAll.length, tasks_done:doneN, norm:normCount(d)+' из '+normTotal(),
     score:Math.round(normCount(d)/normTotal()*100), extra:JSON.stringify({training:!!d.training,tasks:tasksAll,content:S.content,emotions:(S.emotions||[]).slice(0,30)}) };
-  if(S.followers) fields.followers=S.followers;
+  if(curFollowers()) fields.followers=curFollowers();
   syncMsg='пишу в таблицу';
   return fetch(D.sync.url,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({key:D.sync.key,date:t,fields:fields})})
     .then(function(r){ return r.json(); })
@@ -565,7 +587,7 @@ function syncPull(){
         ['water','iron','vitd','workout','faceyoga','med_morning','med_evening','visual','breath'].forEach(function(k){
           if(r[k]!=null&&r[k]!=='') d[k]=k==='water'?+r[k]:(+r[k]?1:0);
         });
-        if(r.followers) S.followers=+r.followers;
+        if(r.followers&&(!S.followersAt||r.date>=S.followersAt)){ S.followers=+r.followers; S.followersAt=r.date; }
       });
       save(); syncMsg='таблица обновлена';
     }).catch(function(){ syncMsg='таблица недоступна'; })
@@ -790,13 +812,13 @@ function viewPath(){
 }
 /* ---------- 4. Блог ---------- */
 function viewBlog(){
-  var b=D.blog,cur=S.followers||b.followers.current,goal=b.goal.value,start=b.start.value;
+  var b=D.blog,cur=curFollowers(),goal=b.goal.value,start=b.start.value;
   var pct=clamp((cur-start)/(goal-start)*100,0,100);
   var left=goal-cur,daysLeft=Math.max(1,diffDays(parse(todayStr()),parse(b.goal.date))),perDay=Math.ceil(left/daysLeft);
   var next=(b.checkpoints||[]).filter(function(c){ return parse(c.date)>=parse(todayStr()); })[0];
   var hist=(b.history||[]).slice(-6),hmax=Math.max.apply(null,hist.map(function(x){ return x.value; }))||1;
   var h=top('Блог','Точка Джулс')+banner();
-  h+='<section class="card"><div class="ch"><h2>Подписчики</h2><span class="r">на '+shortDate(b.followers.asOf)+'</span></div>'
+  h+='<section class="card"><div class="ch"><h2>Подписчики</h2><span class="r">на '+shortDate(followersDate())+'</span></div>'
     + '<div class="gauge"><svg viewBox="0 0 200 118">'
     + '<path d="M14 104 A86 86 0 0 1 186 104" fill="none" stroke="rgba(36,28,32,.08)" stroke-width="14" stroke-linecap="round"/>'
     + '<path id="gArc" d="M14 104 A86 86 0 0 1 186 104" fill="none" stroke="url(#ggauge)" stroke-width="14" stroke-linecap="round" pathLength="100" stroke-dasharray="0 100" data-pct="'+pct.toFixed(1)+'"/>'
@@ -820,12 +842,20 @@ function viewBlog(){
           + '<div class="marksrow"><button class="tog'+(s.shot?' on':'')+'" data-a="cp" data-k="'+esc(c.id)+'|shot">'+ico('cam',14)+'Снято</button>'
           + '<button class="tog'+(s.posted?' on':'')+'" data-a="cp" data-k="'+esc(c.id)+'|posted">'+ico('up',14)+'Выложено</button></div></div>'; }).join('')
     + '</section>';
-  var ideas=(S.ideas&&S.ideas.length?S.ideas:(b.ideas||[]));
+  var ideas=allIdeas(),okN=ideas.filter(function(x){ return x.status==='согласована'; }).length;
   h+='<section class="card"><button class="ideahead" data-a="ideas"><span><h2>Идеи для рилс</h2>'
-    + '<span class="muted">'+ideas.length+' '+plural(ideas.length,'идея','идеи','идей')+' в копилке</span></span>'
+    + '<span class="muted">'+ideas.length+' '+plural(ideas.length,'идея','идеи','идей')+' в копилке'+(okN?', '+okN+' '+plural(okN,'согласована','согласованы','согласовано'):'')+'</span></span>'
     + '<span class="caret'+(S.ideasOpen?' up':'')+'">'+ico('up',18)+'</span></button>'
     + (S.ideasOpen? '<div class="ideas">'+ideas.map(function(x){
-          return '<div class="idea"><b>'+esc(x.text)+'</b>'+(x.tag?'<span class="tag">'+esc(x.tag)+'</span>':'')+'</div>'; }).join('')
+          var open=S.ideaSel===x.id, ref=safeUrl(x.ref), has=x.why||x.how||ref;
+          return '<div class="idea'+(x.status==='согласована'?' ok':'')+'" role="button" tabindex="0" data-a="ideaOpen" data-k="'+esc(x.id)+'">'
+            + (x.status?'<span class="st">'+esc(x.status)+'</span>':'')+(x.tag?'<span class="st">'+esc(x.tag)+'</span>':'')
+            + '<b style="display:block">'+esc(x.text)+'</b>'
+            + (open&&has?'<div class="more">'+(x.why?'<p><em>почему зайдёт:</em> '+esc(x.why)+'</p>':'')
+              + (x.how?'<p><em>как сделать:</em> '+esc(x.how)+'</p>':'')
+              + (ref?'<a href="'+esc(ref)+'" target="_blank" rel="noopener">смотреть референс →</a>':'')+'</div>'
+              : (has?'<span class="mini" style="display:block;margin-top:6px">нажми, чтобы раскрыть</span>':''))
+            + '</div>'; }).join('')
         + '<div class="addrow"><input id="ideaIn" placeholder="Новая идея" data-keep="1"><button class="pill acc" data-a="ideaAdd">Добавить</button></div></div>' : '')
     + '</section>';
   return h;
@@ -860,7 +890,7 @@ function weekSummary(wk,full,nt){
   });
   var shot=0,posted=0;
   (b.plan||[]).forEach(function(c){ var s=S.content[c.id]||{}; if(s.shot) shot++; if(s.posted) posted++; });
-  var cur=S.followers||b.followers.current;
+  var cur=curFollowers();
   var weekAgo=(b.history||[]).slice(-2)[0];
   var gain=weekAgo?cur-weekAgo.value:0;
   var pl=D.planerka,dd=(pl.dow-new Date().getDay()+7)%7,isToday=dd===0;
@@ -1046,12 +1076,13 @@ var ACTIONS={
   cp:function(k){ var p=k.split('|'), s=S.content[p[0]]||(S.content[p[0]]={}); s[p[1]]=s[p[1]]?0:1; save(); render(); haptic('light'); syncPush(); },
   followers:function(){ var el=document.getElementById('fIn'); if(!el) return;
     var n=parseInt(String(el.value).replace(/\D/g,''),10); if(!n) return;
-    S.followers=n; el.value=''; save(); render(); syncPush(); },
+    S.followers=n; S.followersAt=todayStr(); el.value=''; save(); render(); syncPush(); },
   selDay:function(k){ S.sel=k; save(); render(); haptic('light'); },
   pathDay:function(k){ if(parse(k)>parse(todayStr())) return; var d=day(k); d.path=d.path?0:1; save(); render(); haptic('light'); },
   ideas:function(){ S.ideasOpen=!S.ideasOpen; save(); render(); haptic('light'); },
+  ideaOpen:function(k){ S.ideaSel=(S.ideaSel===k)?'':k; save(); render(); haptic('light'); },
   ideaAdd:function(){ var el=document.getElementById('ideaIn'); if(!el||!el.value.trim()) return;
-    if(!S.ideas||!S.ideas.length) S.ideas=(D.blog.ideas||[]).slice();
+    S.ideas=(S.ideas||[]).filter(function(x){ return /^i\d{13}$/.test(x.id); });
     S.ideas.unshift({id:'i'+Date.now(),text:el.value.trim(),tag:''});
     el.value=''; S.ideasOpen=true; save(); render(); syncPush(); },
   openPractice:function(k){ openPractice(k); haptic('light'); },
@@ -1075,6 +1106,8 @@ var ACTIONS={
   retry:function(){ boot(); }
 };
 document.addEventListener('click',function(ev){
+  var ln=ev.target.closest('a[href]');
+  if(ln){ var tg=window.Telegram&&Telegram.WebApp; if(tg&&tg.openLink){ ev.preventDefault(); tg.openLink(ln.href); } return; }
   var el=ev.target.closest('[data-a]'); if(!el) return;
   var fn=ACTIONS[el.dataset.a]; if(!fn) return;
   ev.preventDefault(); fn(el.dataset.k);
