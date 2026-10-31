@@ -302,7 +302,7 @@ body[data-tab="practices"]{--bg:#FBF3DF;--b1:#FBE8B8;--b2:#F6EAD2;--b3:#FFF4DC;-
 @keyframes ideaIn{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:none}}
 @media (prefers-reduced-motion:reduce){.idea .more{animation:none}}
 /* итоги недели */
-.sum{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
+.sum{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 .si{background:rgba(255,255,255,.5);border:1px solid var(--edge);border-radius:18px;padding:13px 10px;text-align:center}
 .si b{display:block;font-size:26px;font-weight:300;letter-spacing:-.03em;line-height:1}
 .si b em{font-style:normal;font-size:13px;font-weight:700;color:var(--mute)}
@@ -455,14 +455,12 @@ var store={
   get:function(){ try{ var r=localStorage.getItem(KEY); return r?JSON.parse(r):null; }catch(e){ return mem; } },
   set:function(v){ mem=v; try{ localStorage.setItem(KEY,JSON.stringify(v)); }catch(e){} }
 };
-var D=null, loadError='', S=null, tab='today', vIdx=0, syncMsg='', phaseOpen=null, PRIV=null, privMsg='';
+var D=null, loadError='', S=null, tab='today', vIdx=0, syncMsg='', phaseOpen=null;
 function blankDay(){ return {path:0,faceyoga:0,water:0,training:0,iron:0,vitd:0,workout:0,breakfast:0,med_morning:0,med_evening:0,visual:0,breath:0,tasks:{}}; }
 function loadState(){
   var s=store.get()||{};
   if(!s.days) s.days={};
-  if(!s.content) s.content={};
   if(!s.emotions) s.emotions=[];
-  if(s.followers==null) s.followers=null;
   if(!s.extraTasks) s.extraTasks=[];
   if(!s.sel) s.sel='';
   return s;
@@ -484,8 +482,6 @@ function seedDemo(){
     S.days[k]=x;
   }
   var d0=day(); d0.water=750; d0.vitd=1; d0.workout=1;
-  (D.blog.plan||[]).slice(0,4).forEach(function(c,i){ S.content[c.id]={shot:1,posted:i<3?1:0}; });
-  S.followers=1496;
   S.emotions=[];
   S.seeded=1; save();
 }
@@ -510,25 +506,6 @@ function phaseInfo(){
   if(!cur) cur=c.phases[c.phases.length-1];
   var week=Math.floor((n-1)/7)+1;
   return {n:n,total:total,cur:cur,idx:idx,week:week};
-}
-function localFresh(){ var f=(D.blog&&D.blog.followers)||{}; return !!(S.followers&&S.followersAt&&S.followersAt>(f.asOf||'')); }
-function curFollowers(){ var f=(D.blog&&D.blog.followers)||{}; return localFresh()?S.followers:(f.current||S.followers||0); }
-function followersDate(){ return localFresh()?S.followersAt:((D.blog.followers||{}).asOf||todayStr()); }
-var IDEA_ORDER={'согласована':0,'в работе':1,'новая':2,'':2};
-function allIdeas(){
-  var srv=((D.blog&&D.blog.ideas)||[]).filter(function(x){ return x.status!=='снята'&&x.status!=='отказ'&&x.status!=='снято'; });
-  var ids={}; srv.forEach(function(x){ ids[x.id]=1; });
-  var mine=(S.ideas||[]).filter(function(x){ return /^i\d{13}$/.test(x.id)&&!ids[x.id]; });
-  var rank=function(x){ var r=IDEA_ORDER[x.status||'']; return r==null?2:r; };
-  return mine.concat(srv.slice().sort(function(a,b){ return rank(a)-rank(b); }));
-}
-function safeUrl(u){ return /^https:\/\//.test(u||'')?u:''; }
-function bridgeLine(){
-  var b=D.blog; if(!b) return '';
-  var cur=curFollowers(),goal=b.goal.value,start=b.start.value;
-  var left=goal-cur,daysLeft=Math.max(1,diffDays(parse(todayStr()),parse(b.goal.date))),perDay=Math.ceil(left/daysLeft);
-  if(left<=0) return '<p class="muted" style="margin:10px 0 0">Цель по подписчикам уже достигнута 🎉</p>';
-  return '<p class="muted" style="margin:10px 0 0">+'+perDay+' подписчиков в день, чтобы успеть к '+N(goal)+' ('+shortDate(b.goal.date)+')</p>';
 }
 function soberParts(){
   var s=parse(D.sober.since), t=parse(todayStr());
@@ -568,8 +545,7 @@ function syncPush(){
   var fields={ water:d.water, iron:d.iron?1:0, vitd:d.vitd?1:0, workout:d.workout?1:0, faceyoga:d.faceyoga?1:0,
     med_morning:d.med_morning?1:0, visual:d.visual?1:0, breath:d.breath?1:0, med_evening:d.med_evening?1:0,
     tasks_plan:tasksAll.length, tasks_done:doneN, norm:normCount(d)+' из '+normTotal(),
-    score:Math.round(normCount(d)/normTotal()*100), extra:JSON.stringify({training:!!d.training,tasks:tasksAll,content:S.content,emotions:(S.emotions||[]).slice(0,30)}) };
-  if(curFollowers()) fields.followers=curFollowers();
+    score:Math.round(normCount(d)/normTotal()*100), extra:JSON.stringify({training:!!d.training,tasks:tasksAll,emotions:(S.emotions||[]).slice(0,30)}) };
   syncMsg='пишу в таблицу';
   return fetch(D.sync.url,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({key:D.sync.key,date:t,fields:fields})})
     .then(function(r){ return r.json(); })
@@ -601,13 +577,6 @@ function syncPull(){
           if(j.followers&&!S.followers) S.followers=+j.followers;
         }).catch(function(){});
     });
-}
-function privPull(){
-  if(!(D&&D.api&&D.sync&&D.sync.key)){ privMsg='nokey'; return Promise.resolve(); }
-  return fetch(D.api+'/state?v='+Date.now(),{headers:{'X-Key':D.sync.key},cache:'no-store'})
-    .then(function(r){ if(!r.ok) throw new Error(r.status); return r.json(); })
-    .then(function(j){ if(j&&j.ok){ PRIV=j; privMsg=''; } })
-    .catch(function(){ privMsg='down'; });
 }
 function paintChip(){ var c=document.getElementById('syncchip'); if(c) c.innerHTML=chipInner(); }
 function chipInner(){
@@ -656,7 +625,7 @@ function viewToday(){
     + '<div class="tl">'+(D.challenge.phases||[]).map(function(x,i){
         var f=i<p.idx?100:i>p.idx?0:clamp(Math.round((diffDays(parse(x.from),parse(todayStr()))+1)/(diffDays(parse(x.from),parse(x.to))+1)*100),0,100);
         return '<div class="'+(i===p.idx?'cur':'')+'"><i><u style="width:'+f+'%"></u></i>'+esc(x.name)+'</div>'; }).join('')
-    + '</div>'+bridgeLine()+'</section>';
+    + '</div><p class="muted" style="margin:10px 0 0">Цель: '+N(D.challenge.subscriberGoal||0)+' подписчиков</p></section>';
   var allTasks=todaysTasks().concat(todaysExtra());
   var mainTasks=allTasks.filter(function(x){ return x.main; }), restTasks=allTasks.filter(function(x){ return !x.main; });
   var mainDone=mainTasks.filter(function(x){ return d.tasks[x.id]; }).length;
@@ -709,68 +678,10 @@ function viewHealth(){
         return '<button class="row'+(d[x.id]?' on':'')+'" data-a="supp" data-k="'+esc(x.id)+'">'
           + '<span class="box">'+(d[x.id]?ico('check',14):'')+'</span><span class="t"><b>'+esc(x.title)+'</b>'
           + '<span>'+esc(x.time)+' · '+esc(x.note)+'</span></span></button>'; }).join('')+'</section>';
-  h+=iphoneCard();
   var sp=soberParts();
   h+='<section class="card"><div class="ch"><h2>Без алкоголя</h2><span class="r">с '+shortDate(D.sober.since)+'</span></div>'
     + '<div class="counter"><div class="cbox"><b class="num">'+sp.months+'</b><span>'+plural(sp.months,'месяц','месяца','месяцев')+'</span></div>'
     + '<div class="cbox"><b class="num">'+sp.days+'</b><span>'+plural(sp.days,'день','дня','дней')+'</span></div></div></section>';
-  return h;
-}
-function privHint(what){
-  if(privMsg==='nokey') return '<p class="mini">'+what+' видно только в твоём приложении: открой его кнопкой «Мой день» в Telegram.</p>';
-  if(privMsg==='down') return '<p class="mini">Сервер сейчас не ответил. Открой приложение ещё раз чуть позже.</p>';
-  return '<p class="mini">Загружаю…</p>';
-}
-function hm(v){ var hh=Math.floor(v),m=Math.round((v-hh)*60); if(m===60){hh++;m=0;} return hh+':'+String(m).padStart(2,'0'); }
-function iphoneCard(){
-  var H=PRIV&&PRIV.health;
-  var head='<section class="card"><div class="ch"><h2>С iPhone</h2><span class="r">Apple Health</span></div>';
-  if(!H) return head+privHint('Данные Здоровья')+'</section>';
-  if(!H.has_data) return head+'<p class="mini">Пока пусто. Как только iPhone пришлёт данные (настройка у бота), здесь будут шаги, сон и активность, а бот начнёт подсказывать по ним.</p></section>';
-  var t=H.today||{}, a=H.avg||{};
-  function box(v,l){ return '<div class="cbox"><b class="num">'+v+'</b><span>'+l+'</span></div>'; }
-  var steps=H.week.map(function(d){ return d.steps||0; }), smax=Math.max.apply(null,steps.concat([1]));
-  return head
-    + '<div class="two">'+box(t.steps!=null?N(t.steps):'—','шагов сегодня')+box(t.sleep_h!=null?hm(t.sleep_h):'—','сон ночью')+'</div>'
-    + '<div class="two">'+box(t.exercise_min!=null?Math.round(t.exercise_min):'—','активных минут')+box(t.stand_h!=null?Math.round(t.stand_h):'—','часов стоя')+'</div>'
-    + '<div class="wbars">'+H.week.map(function(d,i){
-        return '<div><i class="'+(i===H.week.length-1?'last':'')+'" style="height:'+clamp(Math.round((d.steps||0)/smax*100),6,100)+'%"></i><span>'+DW2[parse(d.date).getDay()]+'</span></div>'; }).join('')+'</div>'
-    + '<p class="mini">Шаги за неделю. В среднем '+(a.steps!=null?N(a.steps):'—')+' шагов и '+(a.sleep_h!=null?hm(a.sleep_h):'—')+' сна. Выводы и советы присылает бот.</p></section>';
-}
-/* ---------- 6. Деньги ---------- */
-function viewMoney(){
-  var h=top('Деньги','путь к точке Б')+banner();
-  var M=PRIV&&PRIV.money;
-  if(!M) return h+'<section class="card">'+privHint('Деньги')+'</section>';
-  var g=M.goal;
-  h+='<section class="card lock"><div class="ch"><h2>Точка Б</h2>'+(g?'<span class="r">до '+shortDate(g.deadline)+'</span>':'')+'</div>'
-    + (g? '<div class="row1"><span class="big num">'+Math.round(g.pct)+'%</span><span class="sub">'+esc(g.title)+'</span></div>'
-        + '<div class="bar"><i style="width:'+clamp(g.pct,0,100)+'%"></i></div>'
-        + '<p class="muted" style="margin:10px 0 0">'+R(g.saved)+' из '+R(g.amount)+' · нужно откладывать ~'+R(g.per_month)+' в месяц</p>'
-      : '<p class="muted" style="margin:0">Цель ещё не задана. Скажи боту одной фразой: «цель 300 000 к 31 марта на подушку».</p>')
-    + '</section>';
-  var m=M.month;
-  function tile(v,l,c){ return '<div class="cbox" style="background:'+c+'"><b class="num" style="font-size:20px">'+R(v)+'</b><span>'+l+'</span></div>'; }
-  h+='<section class="card"><div class="ch"><h2>'+esc(m.name.replace(/^./,function(c){ return c.toUpperCase(); }))+'</h2><span class="r">неделя: −'+R(M.week.expense)+'</span></div>'
-    + '<div class="two">'+tile(m.income,'пришло','rgba(168,210,196,.32)')+tile(m.expense,'потратила','rgba(232,137,159,.22)')+tile(m.saved,'отложила','rgba(205,188,231,.32)')+'</div></section>';
-  var notes=(M.insight?[M.insight]:[]).concat(M.flags||[]);
-  if(notes.length) h+='<section class="card"><div class="ch"><h2>Что я вижу</h2></div>'
-    + notes.map(function(x,i){ return '<p class="'+(i===0&&M.insight?'':'muted')+'" style="margin:'+(i?'8px':'0')+' 0 0;font-size:14px;font-weight:600">'+esc(x)+'</p>'; }).join('')+'</section>';
-  var cats=Object.keys(m.cats||{}), lim=M.limits||{}, cmax=Math.max.apply(null,cats.map(function(k){ return m.cats[k]; }).concat([1]));
-  h+='<section class="card"><div class="ch"><h2>Куда уходят</h2></div>'
-    + (cats.length? cats.map(function(k){
-        var v=m.cats[k], L=lim[k], over=L&&v>L;
-        return '<div class="mcat"><span>'+esc(k)+'</span><div class="bar"><i style="width:'+clamp(Math.round((L?v/L:v/cmax)*100),3,100)+'%'+(over?';background:var(--acc-ink)':'')+'"></i></div>'
-          + '<b class="num">'+R(v)+(L?'<em> / '+R(L)+'</em>':'')+'</b></div>'; }).join('')
-      : '<p class="mini">В этом месяце трат пока нет.</p>')
-    + '</section>';
-  var ic={expense:'−',income:'+',saved:'+'};
-  h+='<section class="card"><div class="ch"><h2>Последние записи</h2></div>'
-    + ((M.last||[]).length? M.last.map(function(e){
-        return '<div class="ment"><span class="t"><b>'+esc(e.cat)+'</b><span>'+shortDate(e.date)+(e.note?' · '+esc(e.note):'')+(e.kind==='saved'?' · отложено':'')+'</span></span>'
-          + '<b class="num '+(e.kind==='expense'?'':'plus')+'">'+ic[e.kind]+R(e.amount)+'</b></div>'; }).join('')
-      : '<p class="mini">Записей пока нет.</p>')
-    + '<p class="mini">Траты и доходы — голосом боту: «потратила 450 на такси», «пришло 15 000 за интеграцию», «отложила 7 500». Перед покупкой спроси: «хочу купить…» — разберём вместе.</p></section>';
   return h;
 }
 /* ---------- 3. Практики ---------- */
@@ -798,7 +709,7 @@ function viewPath(){
   var cells='';
   for(var i=0;i<start;i++) cells+='<span class="cd off"></span>';
   for(var n=1;n<=len;n++){
-    var k=ymd(new Date(y,m,n)),dd=S.days[k]||{},on=!!(dd.path||(dd.med_morning&&dd.med_evening));
+    var k=ymd(new Date(y,m,n)),dd=S.days[k]||{},on=!!(dd.path||dd.med_morning||dd.med_evening||dd.workout);
     if(on) marked++;
     var isT=k===todayStr(), after=parse(k)>t;
     cells+='<button class="cd'+(on?' on':'')+(isT?' today':'')+(after?' off':'')+'" data-a="pathDay" data-k="'+k+'">'+n+'</button>';
@@ -810,56 +721,6 @@ function viewPath(){
     + '<div class="nowcard"><span class="ic go">'+ico('check',18)+'</span><span class="t"><b>'+marked+' '+plural(marked,'день','дня','дней')+' в этом месяце</b>'
     + '<span>нажми на число, чтобы отметить день</span></span></div>'
     + '<p class="mini">66 дней подряд, утро и вечер. Пропуск не обнуляет, просто идём дальше.</p></section>';
-}
-/* ---------- 4. Блог ---------- */
-function viewBlog(){
-  var b=D.blog,cur=curFollowers(),goal=b.goal.value,start=b.start.value;
-  var pct=clamp((cur-start)/(goal-start)*100,0,100);
-  var left=goal-cur,daysLeft=Math.max(1,diffDays(parse(todayStr()),parse(b.goal.date))),perDay=Math.ceil(left/daysLeft);
-  var next=(b.checkpoints||[]).filter(function(c){ return parse(c.date)>=parse(todayStr()); })[0];
-  var hist=(b.history||[]).slice(-6),hmax=Math.max.apply(null,hist.map(function(x){ return x.value; }))||1;
-  var h=top('Блог','Точка Джулс')+banner();
-  h+='<section class="card"><div class="ch"><h2>Подписчики</h2><span class="r">на '+shortDate(followersDate())+'</span></div>'
-    + '<div class="gauge"><svg viewBox="0 0 200 118">'
-    + '<path d="M14 104 A86 86 0 0 1 186 104" fill="none" stroke="rgba(36,28,32,.08)" stroke-width="14" stroke-linecap="round"/>'
-    + '<path id="gArc" d="M14 104 A86 86 0 0 1 186 104" fill="none" stroke="url(#ggauge)" stroke-width="14" stroke-linecap="round" pathLength="100" stroke-dasharray="0 100" data-pct="'+pct.toFixed(1)+'"/>'
-    + '</svg><div class="c"><b class="num">'+N(cur)+'</b><span>из '+N(goal)+' к '+shortDate(b.goal.date)+'</span></div></div>'
-    + '<div class="marks"><span>старт '+N(start)+'</span><span>'+Math.round(pct)+'%</span></div>'
-    + '<div class="two"><div class="cbox"><b class="num">+'+perDay+'</b><span>в день, чтобы успеть</span></div>'
-    + (next?'<div class="cbox"><b class="num">'+N(next.value)+'</b><span>к '+shortDate(next.date)+', ещё +'+Math.max(0,next.value-cur)+'</span></div>':'')+'</div>'
-    + '<div class="wbars">'+hist.map(function(x,i){
-        return '<div><i class="'+(i===hist.length-1?'last':'')+'" style="height:'+clamp(Math.round(x.value/hmax*100),10,100)+'%"></i><span>'+shortDate(x.date)+'</span></div>'; }).join('')
-    + '</div><div class="addrow"><input id="fIn" inputmode="numeric" placeholder="Сколько сейчас?" data-keep="1"><button class="pill acc" data-a="followers">Сохранить</button></div>'
-    + '<p class="mini">'+esc(b.followers.source||'')+'.</p></section>';
-  var plan=b.plan||[],shot=0,posted=0;
-  plan.forEach(function(c){ var s=S.content[c.id]||{}; if(s.shot) shot++; if(s.posted) posted++; });
-  h+='<section class="card"><div class="ch"><h2>Контент-план</h2><span class="r">'+esc(b.planWeek||'')+'</span></div>'
-    + '<p class="muted" style="margin:0 0 4px">Снято '+shot+' из '+plan.length+', выложено '+posted+'</p>'
-    + plan.map(function(c){
-        var s=S.content[c.id]||{};
-        return '<div class="cp"><div class="l1"><span class="d">'+DW2[c.day]+'</span><b>'+esc(c.title)+'</b></div>'
-          + '<div class="tags"><span class="tg t-'+esc(c.type)+'">'+esc((b.types||{})[c.type]||c.type)+'</span>'
-          + '<span class="tg">'+esc((b.formats||{})[c.format]||c.format)+'</span></div>'
-          + '<div class="marksrow"><button class="tog'+(s.shot?' on':'')+'" data-a="cp" data-k="'+esc(c.id)+'|shot">'+ico('cam',14)+'Снято</button>'
-          + '<button class="tog'+(s.posted?' on':'')+'" data-a="cp" data-k="'+esc(c.id)+'|posted">'+ico('up',14)+'Выложено</button></div></div>'; }).join('')
-    + '</section>';
-  var ideas=allIdeas(),okN=ideas.filter(function(x){ return x.status==='согласована'; }).length;
-  h+='<section class="card"><button class="ideahead" data-a="ideas"><span><h2>Идеи для рилс</h2>'
-    + '<span class="muted">'+ideas.length+' '+plural(ideas.length,'идея','идеи','идей')+' в копилке'+(okN?', '+okN+' '+plural(okN,'согласована','согласованы','согласовано'):'')+'</span></span>'
-    + '<span class="caret'+(S.ideasOpen?' up':'')+'">'+ico('up',18)+'</span></button>'
-    + (S.ideasOpen? '<div class="ideas">'+ideas.map(function(x){
-          var open=S.ideaSel===x.id, ref=safeUrl(x.ref), has=x.why||x.how||ref;
-          return '<div class="idea'+(x.status==='согласована'?' ok':'')+'" role="button" tabindex="0" data-a="ideaOpen" data-k="'+esc(x.id)+'">'
-            + (x.status?'<span class="st">'+esc(x.status)+'</span>':'')+(x.tag?'<span class="st">'+esc(x.tag)+'</span>':'')
-            + '<b style="display:block">'+esc(x.text)+'</b>'
-            + (open&&has?'<div class="more">'+(x.why?'<p><em>почему зайдёт:</em> '+esc(x.why)+'</p>':'')
-              + (x.how?'<p><em>как сделать:</em> '+esc(x.how)+'</p>':'')
-              + (ref?'<a href="'+esc(ref)+'" target="_blank" rel="noopener">смотреть референс →</a>':'')+'</div>'
-              : (has?'<span class="mini" style="display:block;margin-top:6px">нажми, чтобы раскрыть</span>':''))
-            + '</div>'; }).join('')
-        + '<div class="addrow"><input id="ideaIn" placeholder="Новая идея" data-keep="1"><button class="pill acc" data-a="ideaAdd">Добавить</button></div></div>' : '')
-    + '</section>';
-  return h;
 }
 /* ---------- 5. Мои дни ---------- */
 function weekDays(){
@@ -880,37 +741,28 @@ function dayEvents(k){
   return out.sort(function(a,b){ return (a.time||'99').localeCompare(b.time||'99'); });
 }
 function weekSummary(wk,full,nt){
-  var b=D.blog,meds=0,waterOk=0,practices=0;
+  var meds=0,waterOk=0,workouts=0;
   wk.forEach(function(k){
     var d=S.days[k]||blankDay();
     if(d.med_morning) meds++;
     if(d.med_evening) meds++;
-    if(d.visual) practices++;
-    if(d.breath) practices++;
+    if(d.workout) workouts++;
     if(d.water>=waterGoal(d)) waterOk++;
   });
-  var shot=0,posted=0;
-  (b.plan||[]).forEach(function(c){ var s=S.content[c.id]||{}; if(s.shot) shot++; if(s.posted) posted++; });
-  var cur=curFollowers();
-  var weekAgo=(b.history||[]).slice(-2)[0];
-  var gain=weekAgo?cur-weekAgo.value:0;
   var pl=D.planerka,dd=(pl.dow-new Date().getDay()+7)%7,isToday=dd===0;
   var best=full>=5?'Неделя сложилась. Так и держим.'
     : full>=3?'Середина. Добери воду и медитации, и неделя закроется.'
     : 'Неделя просела. Начни с одного пункта нормы в день.';
-  var planLen=(b.plan||[]).length;
-  var weak=[{l:'дни нормы',r:full/7},{l:'вода',r:waterOk/7},{l:'съёмка по плану',r:planLen?shot/planLen:1}]
+  var weak=[{l:'дни нормы',r:full/7},{l:'вода',r:waterOk/7},{l:'зарядка',r:workouts/7}]
     .sort(function(a,c){ return a.r-c.r; })[0];
   var tip=weak&&weak.r<1?'Слабее всего на этой неделе: <b>'+weak.l+'</b>. С этого и начни новую.':'Всё ровно, явных провисаний нет.';
   return '<section class="card'+(isToday?' lock':'')+'"><div class="ch"><h2>Итоги недели</h2>'
     + '<span class="chip'+(isToday?' on':'')+'">'+(isToday?'планёрка сегодня в '+pl.time:'планёрка '+(dd===1?'завтра':'через '+dd+' '+plural(dd,'день','дня','дней')))+'</span></div>'
     + '<div class="sum">'
     + '<div class="si"><b class="num">'+full+'<em> / 7</em></b><span>дней закрыто</span></div>'
-    + '<div class="si"><b class="num">'+shot+'<em> / '+(b.plan||[]).length+'</em></b><span>роликов снято</span></div>'
-    + '<div class="si"><b class="num">'+posted+'</b><span>выложено</span></div>'
-    + '<div class="si"><b class="num">'+(gain>=0?'+':'')+gain+'</b><span>подписчиков</span></div>'
-    + '<div class="si"><b class="num">'+meds+'</b><span>медитаций</span></div>'
     + '<div class="si"><b class="num">'+waterOk+'<em> / 7</em></b><span>дней с нормой воды</span></div>'
+    + '<div class="si"><b class="num">'+meds+'</b><span>медитаций</span></div>'
+    + '<div class="si"><b class="num">'+workouts+'<em> / 7</em></b><span>зарядок</span></div>'
     + '</div><p class="muted" style="margin:14px 0 0">'+best+'</p>'
     + '<p class="muted" style="margin:6px 0 0">'+tip+'</p></section>';
 }
@@ -964,13 +816,13 @@ function viewError(){
 }
 /* ---------- сборка ---------- */
 var TABS=[{k:'today',t:'Сегодня',i:'sun'},{k:'health',t:'Здоровье',i:'drop'},{k:'practices',t:'Практики',i:'lotus'},
-          {k:'blog',t:'Блог',i:'chart'},{k:'money',t:'Деньги',i:'wallet'},{k:'days',t:'Стратегия',i:'cal'}];
+          {k:'days',t:'Стратегия',i:'cal'}];
 function render(){
   var v=document.getElementById('view'),nav=document.getElementById('nav'),keep={};
   Array.prototype.forEach.call(v.querySelectorAll('[data-keep]'),function(el){ if(el.value) keep[el.id]=el.value; });
   document.body.dataset.tab=tab;
   v.innerHTML = !D ? viewError() : tab==='today'?viewToday() : tab==='health'?viewHealth() : tab==='practices'?viewPractices()
-    : tab==='blog'?viewBlog() : tab==='money'?viewMoney() : viewDays();
+    : viewDays();
   nav.innerHTML = TABS.map(function(x){
     return '<button class="'+(tab===x.k?'on':'')+'" data-a="tab" data-k="'+x.k+'">'+ico(x.i,20)+x.t+'</button>'; }).join('');
   Object.keys(keep).forEach(function(id){ var el=document.getElementById(id); if(el&&!el.value) el.value=keep[id]; });
@@ -1074,18 +926,8 @@ var ACTIONS={
   phase:function(k){ var ni=+k; phaseOpen=(phaseOpen===ni)?null:ni; render(); haptic('light'); },
   vision:function(){ vIdx=(vIdx+1)%((D.visions||[]).length||1); var d=day(); d.visual=1; save();
     if(document.querySelector('.sheet')) openPractice('visual'); else render(); syncPush(); },
-  cp:function(k){ var p=k.split('|'), s=S.content[p[0]]||(S.content[p[0]]={}); s[p[1]]=s[p[1]]?0:1; save(); render(); haptic('light'); syncPush(); },
-  followers:function(){ var el=document.getElementById('fIn'); if(!el) return;
-    var n=parseInt(String(el.value).replace(/\D/g,''),10); if(!n) return;
-    S.followers=n; S.followersAt=todayStr(); el.value=''; save(); render(); syncPush(); },
   selDay:function(k){ S.sel=k; save(); render(); haptic('light'); },
   pathDay:function(k){ if(parse(k)>parse(todayStr())) return; var d=day(k); d.path=d.path?0:1; save(); render(); haptic('light'); },
-  ideas:function(){ S.ideasOpen=!S.ideasOpen; save(); render(); haptic('light'); },
-  ideaOpen:function(k){ S.ideaSel=(S.ideaSel===k)?'':k; save(); render(); haptic('light'); },
-  ideaAdd:function(){ var el=document.getElementById('ideaIn'); if(!el||!el.value.trim()) return;
-    S.ideas=(S.ideas||[]).filter(function(x){ return /^i\d{13}$/.test(x.id); });
-    S.ideas.unshift({id:'i'+Date.now(),text:el.value.trim(),tag:''});
-    el.value=''; S.ideasOpen=true; save(); render(); syncPush(); },
   openPractice:function(k){ openPractice(k); haptic('light'); },
   audio:function(){ if(!A) return; var b=document.querySelector('[data-a="audio"]');
     if(A.paused){ A.play().then(function(){ if(b) b.innerHTML=ico('pause',26); }).catch(function(){
@@ -1103,7 +945,7 @@ var ACTIONS={
     breath.on=true; var b=document.getElementById('breathBtn'); if(b) b.textContent='Пауза';
     paintBreath(); if(timer) clearInterval(timer); timer=setInterval(tickBreath,1000); haptic('light'); },
   close:function(){ closeSheet(); render(); },
-  reset:function(){ S={days:{},content:{},emotions:[],followers:null,extraTasks:[],sel:'',ideas:[],ideasOpen:false}; save(); seedDemo(); render(); },
+  reset:function(){ S={days:{},emotions:[],extraTasks:[],sel:''}; save(); seedDemo(); render(); },
   retry:function(){ boot(); }
 };
 document.addEventListener('click',function(ev){
@@ -1117,19 +959,17 @@ document.addEventListener('keydown',function(ev){
   if(ev.key==='Escape'&&document.getElementById('sheet').innerHTML) ACTIONS.close();
   if(ev.key==='Enter'&&ev.target){
     if(ev.target.id==='taskIn') ACTIONS.taskAdd();
-    if(ev.target.id==='fIn') ACTIONS.followers();
-    if(ev.target.id==='ideaIn') ACTIONS.ideaAdd();
   }
 });
 document.addEventListener('visibilitychange',function(){
-  if(!document.hidden&&D&&!document.getElementById('sheet').innerHTML){ Promise.all([syncPull(),privPull()]).then(render); }
+  if(!document.hidden&&D&&!document.getElementById('sheet').innerHTML){ syncPull().then(render); }
 });
 /* ---------- запуск ---------- */
 function boot(){
   loadError='';
   fetch('data.json?v='+Date.now(),{cache:'no-store'})
     .then(function(r){ if(!r.ok) throw new Error('data.json: ответ '+r.status+'.'); return r.json(); })
-    .then(function(j){ D=j; applyKey(); S=loadState(); seedDemo(); render(); if(syncOn()) syncPull().then(render); privPull().then(render); })
+    .then(function(j){ D=j; applyKey(); S=loadState(); seedDemo(); render(); if(syncOn()) syncPull().then(render); })
     .catch(function(e){ D=null; loadError=(e&&e.message)?e.message:'Не удалось прочитать data.json.'; render(); });
 }
 render();
