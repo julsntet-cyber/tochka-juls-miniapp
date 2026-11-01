@@ -1686,10 +1686,11 @@ class StrategyScreen extends DCLogic {
       style: `flex:1;text-align:center;font-size:11px;line-height:14px;font-weight:${i === TODAY ? 600 : 500};color:${i === TODAY ? ink : muted};`
     }));
 
-    const weekDots = WEEK.map(([, n], i) => ({
-      style: `display:block;width:5px;height:5px;border-radius:50%;background:${n === total && i !== TODAY ? '#FFFFFF' : 'rgba(255,255,255,.32)'};`
+    // Сегодня засчитывается, как только отмечены все привычки
+    const weekDots = WEEK.map(([, n]) => ({
+      style: `display:block;width:5px;height:5px;border-radius:50%;background:${n === total ? '#FFFFFF' : 'rgba(255,255,255,.32)'};`
     }));
-    const closedDays = WEEK.filter(([, n], i) => n === total && i !== TODAY).length;
+    const closedDays = WEEK.filter(([, n]) => n === total).length;
     const waterDays = passedWeek.filter((m) => waterOf(m).habitDone).length;
     const medSessions = passedWeek.reduce((n, m) => n + !!(m.hab || {}).med + !!(m.hab || {}).vip, 0);
     const workouts = passedWeek.filter((m) => (m.hab || {}).zar).length;
